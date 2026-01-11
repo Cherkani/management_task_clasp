@@ -1,5 +1,6 @@
 const SPREADSHEET_ID = "1AxZWkXf1BH2SW6awq0vchyl9OZVanCtxVXKJ_HW_fD4";
 const CALENDAR_ID = null; // Set to a specific calendar ID if you don't want to use the default one.
+const CALENDAR_EVENT_COLUMN = "calendarEventId";
 const DEFAULT_EVENT_DURATION_MINUTES = 60;
 
 const executeAction = ({
@@ -16,15 +17,29 @@ const executeAction = ({
     switch (action) {
       case "add":
         res = orm.create(data);
-
+        handleCalendarSync({
+          type: "add",
+          sheetName,
+          id: data?.id,
+          data,
+        });
         break;
       case "update":
         res = orm.updateById(id, data);
-
+        handleCalendarSync({
+          type: "update",
+          sheetName,
+          id,
+          data,
+        });
         break;
       case "delete":
+        handleCalendarSync({
+          type: "delete",
+          sheetName,
+          id,
+        });
         res = orm.deleteById(id);
-
         break;
       case "getAll":
         res = orm.readAll();
@@ -73,6 +88,9 @@ const addupdateItemToSheet = (sheetName, data) => {
     sheet = SpreadsheetApp.openById(SPREADSHEET_ID).insertSheet(sheetName);
     sheet.getRange("A1").setValue("id");
     sheet.getRange("B1").setValue("name");
+    sheet.getRange("C1").setValue(CALENDAR_EVENT_COLUMN);
+  } else {
+    ensureCalendarEventColumn(sheet);
   }
 
   try {
@@ -82,7 +100,6 @@ const addupdateItemToSheet = (sheetName, data) => {
       id: data.id || null,
       data,
     });
-    syncTaskToCalendar(sheetName, data);
     return result;
   } catch (error) {
     return error;
@@ -103,9 +120,14 @@ const getDropdowns = (sheetNames) => {
 };
 
 const syncTaskToCalendar = (sheetName, data) => {
-  if (!data) return;
+  if (!data) return null;
 
   try {
+    const existingEventId =
+      data[CALENDAR_EVENT_COLUMN] ||
+      data.eventId ||
+      getCalendarEventIdFromSheet(sheetName, data.id);
+
     const eventTitle =
       data.title ||
       data.name ||
@@ -124,22 +146,34 @@ const syncTaskToCalendar = (sheetName, data) => {
       ) || (startDate ? new Date(startDate.getTime() + DEFAULT_EVENT_DURATION_MINUTES * 60 * 1000) : null);
 
     if (!eventTitle || !startDate || !endDate) {
-      return;
+      return null;
     }
 
-    const calendar = CALENDAR_ID
-      ? CalendarApp.getCalendarById(CALENDAR_ID)
-      : CalendarApp.getDefaultCalendar();
+    const calendar = getCalendar();
 
     const description =
       data.description || data.details || data.notes || data.comment || "";
+    const location = data.location || "";
 
-    calendar.createEvent(eventTitle, startDate, endDate, {
+    if (existingEventId) {
+      const existingEvent = calendar.getEventById(existingEventId);
+      if (existingEvent) {
+        existingEvent.setTitle(eventTitle);
+        existingEvent.setTime(startDate, endDate);
+        existingEvent.setDescription(description);
+        existingEvent.setLocation(location);
+        return existingEventId;
+      }
+    }
+
+    const event = calendar.createEvent(eventTitle, startDate, endDate, {
       description,
-      location: data.location || "",
+      location,
     });
+    return event?.getId() || null;
   } catch (error) {
     console.error("Failed to sync task to calendar", error);
+    return null;
   }
 };
 
@@ -170,4 +204,115 @@ const buildEndDate = (dateValue, timeValue, fallbackStart) => {
     );
   }
   return null;
+};
+
+const handleCalendarSync = ({ type, sheetName, id, data }) => {
+  if (!sheetName) return;
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(sheetName);
+  if (!sheet) return;
+  ensureCalendarEventColumn(sheet);
+
+  if (type === "delete") {
+    deleteCalendarEvent(sheetName, id);
+    return;
+  }
+
+  if (!data) return;
+  if (!data.id && id) {
+    data.id = id;
+  }
+  const eventId = syncTaskToCalendar(sheetName, data);
+  if (eventId && id) {
+    updateCalendarEventIdInSheet(sheetName, id, eventId);
+  }
+};
+
+const ensureCalendarEventColumn = (sheet) => {
+  const lastColumn = sheet.getLastColumn() || 1;
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  if (!headers.includes(CALENDAR_EVENT_COLUMN)) {
+    sheet.insertColumnAfter(lastColumn);
+    sheet.getRange(1, lastColumn + 1).setValue(CALENDAR_EVENT_COLUMN);
+  }
+};
+
+const getCalendarEventIdFromSheet = (sheetName, recordId) => {
+  if (!recordId) return null;
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(sheetName);
+  if (!sheet) return null;
+  ensureCalendarEventColumn(sheet);
+  const dataRange = sheet.getDataRange();
+  const values = dataRange.getValues();
+  if (!values.length) return null;
+  const headers = values[0];
+  const idIndex = headers.indexOf("id");
+  const eventIndex = headers.indexOf(CALENDAR_EVENT_COLUMN);
+  if (idIndex === -1 || eventIndex === -1) return null;
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][idIndex]) === String(recordId)) {
+      return values[i][eventIndex] || null;
+    }
+  }
+  return null;
+};
+
+const updateCalendarEventIdInSheet = (sheetName, recordId, eventId) => {
+  if (!recordId || !eventId) return;
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(sheetName);
+  if (!sheet) return;
+  ensureCalendarEventColumn(sheet);
+  const dataRange = sheet.getDataRange();
+  const values = dataRange.getValues();
+  const headers = values[0];
+  const idIndex = headers.indexOf("id");
+  const eventIndex = headers.indexOf(CALENDAR_EVENT_COLUMN);
+  if (idIndex === -1 || eventIndex === -1) return;
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][idIndex]) === String(recordId)) {
+      sheet
+        .getRange(i + 1, eventIndex + 1)
+        .setValue(eventId);
+      break;
+    }
+  }
+};
+
+const deleteCalendarEvent = (sheetName, recordId) => {
+  if (!recordId) return;
+  const eventId = getCalendarEventIdFromSheet(sheetName, recordId);
+  if (!eventId) return;
+  try {
+    const calendar = getCalendar();
+    const event = calendar.getEventById(eventId);
+    if (event) {
+      event.deleteEvent();
+    }
+    clearCalendarEventId(sheetName, recordId);
+  } catch (error) {
+    console.error("Unable to delete calendar event", error);
+  }
+};
+
+const clearCalendarEventId = (sheetName, recordId) => {
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(sheetName);
+  if (!sheet) return;
+  ensureCalendarEventColumn(sheet);
+  const dataRange = sheet.getDataRange();
+  const values = dataRange.getValues();
+  const headers = values[0];
+  const idIndex = headers.indexOf("id");
+  const eventIndex = headers.indexOf(CALENDAR_EVENT_COLUMN);
+  if (idIndex === -1 || eventIndex === -1) return;
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][idIndex]) === String(recordId)) {
+      sheet.getRange(i + 1, eventIndex + 1).setValue("");
+      break;
+    }
+  }
+};
+
+const getCalendar = () => {
+  return CALENDAR_ID
+    ? CalendarApp.getCalendarById(CALENDAR_ID)
+    : CalendarApp.getDefaultCalendar();
 };
