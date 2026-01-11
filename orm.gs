@@ -1,10 +1,9 @@
 // Define your ORM class
 class ORM {
   constructor(sheetName, headers = null) {
-    const sheet =
-      SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+    const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(sheetName);
     if (!sheet) {
-      this.sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet(sheetName);
+      this.sheet = SpreadsheetApp.openById(SPREADSHEET_ID).insertSheet(sheetName);
       headers = ["id", ...headers];
       this.sheet.appendRow(headers);
     } else {

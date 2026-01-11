@@ -1,3 +1,5 @@
+const SPREADSHEET_ID = "1AxZWkXf1BH2SW6awq0vchyl9OZVanCtxVXKJ_HW_fD4";
+
 const executeAction = ({
   action,
   sheetName,
@@ -40,7 +42,7 @@ const executeAction = ({
 };
 
 const getSheetData = (name) => {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(name);
   const dataRange = sheet.getDataRange();
   const data = dataRange.getDisplayValues();
   const heads = data.shift();
@@ -51,7 +53,7 @@ const getSheetData = (name) => {
 };
 
 const getSheetNamesAndHeaders = () => {
-  const sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
+  const sheets = SpreadsheetApp.openById(SPREADSHEET_ID).getSheets();
   const sheetNames = sheets.map((sheet) => sheet.getName());
 
   const headers = sheets.map((sheet) => {
@@ -64,9 +66,9 @@ const getSheetNamesAndHeaders = () => {
 
 const addupdateItemToSheet = (sheetName, data) => {
   // check if sheet exists else create it
-  let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  let sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(sheetName);
   if (!sheet) {
-    sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet(sheetName);
+    sheet = SpreadsheetApp.openById(SPREADSHEET_ID).insertSheet(sheetName);
     sheet.getRange("A1").setValue("id");
     sheet.getRange("B1").setValue("name");
   }
@@ -86,8 +88,7 @@ const addupdateItemToSheet = (sheetName, data) => {
 const getDropdowns = (sheetNames) => {
   const dropdowns = {};
   sheetNames.forEach((sheetName) => {
-    const sheet =
-      SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+    const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(sheetName);
     if (sheet) {
       dropdowns[sheetName] = sheet.getDataRange().getValues();
     } else {
