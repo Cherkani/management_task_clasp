@@ -1,37 +1,26 @@
-const toJsonString = (payload) => JSON.stringify(payload);
-
-const handleError = (error, fallback = null) => {
-  console.error(error);
-  return toJsonString({
-    error: error.message || error.toString(),
-    data: fallback,
-  });
-};
-
 const executeAction = ({
   action,
   sheetName,
   id = null,
   data = null,
-  headers = [],
+  headers = null,
 }) => {
-  if (!sheetName) {
-    return handleError(new Error("sheetName is required"));
-  }
-
+  let res = null;
   try {
     const orm = new ORM(sheetName, headers);
-    let res;
 
     switch (action) {
       case "add":
         res = orm.create(data);
+
         break;
       case "update":
         res = orm.updateById(id, data);
+
         break;
       case "delete":
         res = orm.deleteById(id);
+
         break;
       case "getAll":
         res = orm.readAll();
@@ -40,27 +29,29 @@ const executeAction = ({
         res = orm.readById(id);
         break;
       default:
-        throw new Error(`Unknown action "${action}"`);
+        return false;
     }
 
-    return toJsonString(res);
+    return JSON.stringify(res);
   } catch (error) {
-    return handleError(error);
+    console.log(error);
+    return error;
   }
 };
 
 const getSheetData = (name) => {
-  try {
-    const values = SpreadsheetService.getSheetValues(name);
-    const objects = SpreadsheetService.rowsToObjects(values);
-    return toJsonString(objects);
-  } catch (error) {
-    return handleError(error, []);
-  }
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
+  const dataRange = sheet.getDataRange();
+  const data = dataRange.getDisplayValues();
+  const heads = data.shift();
+  const obj = data.map((r) =>
+    heads.reduce((o, k, i) => ((o[k] = r[i] || ""), o), {})
+  );
+  return JSON.stringify(obj);
 };
 
 const getSheetNamesAndHeaders = () => {
-  const sheets = SpreadsheetService.getSpreadsheet().getSheets();
+  const sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
   const sheetNames = sheets.map((sheet) => sheet.getName());
 
   const headers = sheets.map((sheet) => {
@@ -72,6 +63,14 @@ const getSheetNamesAndHeaders = () => {
 };
 
 const addupdateItemToSheet = (sheetName, data) => {
+  // check if sheet exists else create it
+  let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet(sheetName);
+    sheet.getRange("A1").setValue("id");
+    sheet.getRange("B1").setValue("name");
+  }
+
   try {
     return executeAction({
       action: "add",
@@ -80,14 +79,20 @@ const addupdateItemToSheet = (sheetName, data) => {
       data,
     });
   } catch (error) {
-    return handleError(error);
+    return error;
   }
 };
 
 const getDropdowns = (sheetNames) => {
   const dropdowns = {};
   sheetNames.forEach((sheetName) => {
-    dropdowns[sheetName] = SpreadsheetService.getSheetValues(sheetName);
+    const sheet =
+      SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+    if (sheet) {
+      dropdowns[sheetName] = sheet.getDataRange().getValues();
+    } else {
+      dropdowns[sheetName] = [];
+    }
   });
   return dropdowns;
 };

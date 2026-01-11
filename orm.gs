@@ -1,56 +1,24 @@
+// Define your ORM class
 class ORM {
-  constructor(sheetName, headers = []) {
-    this.sheetName = sheetName;
-    this.sheet = SpreadsheetService.getSheetOrCreate(sheetName, headers);
-    this.headers = this.ensureHeaders(headers);
+  constructor(sheetName, headers = null) {
+    const sheet =
+      SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+    if (!sheet) {
+      this.sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet(sheetName);
+      headers = ["id", ...headers];
+      this.sheet.appendRow(headers);
+    } else {
+      this.sheet = sheet;
+    }
   }
 
-  ensureHeaders(headers = []) {
-    const normalized = SpreadsheetService.normalizeHeaders(headers);
-    const lastColumn = this.sheet.getLastColumn();
-
-    if (!lastColumn) {
-      this.sheet.getRange(1, 1, 1, normalized.length).setValues([normalized]);
-      return normalized;
-    }
-
-    const current = this.sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
-    const hasAnyHeader = current.some((value) => value !== "");
-    if (!hasAnyHeader) {
-      this.sheet.getRange(1, 1, 1, normalized.length).setValues([normalized]);
-      return normalized;
-    }
-
-    const missing = normalized.filter((header) => !current.includes(header));
-    if (missing.length) {
-      this.sheet
-        .getRange(1, current.length + 1, 1, missing.length)
-        .setValues([missing]);
-      return [...current, ...missing];
-    }
-
-    return current;
-  }
-
-  getHeaders() {
-    if (!this.headers || !this.headers.length) {
-      this.headers = this.ensureHeaders();
-    }
-    return this.headers;
-  }
-
+  // Create a new record
   create(data) {
     const id = this.getNextId() || 1;
     data["id"] = id;
-    const headers = this.getHeaders();
-
-    if (this.sheet.getLastColumn() !== headers.length) {
-      this.sheet
-        .getRange(1, 1, 1, headers.length)
-        .setValues([this.getHeaders()]);
-    }
     const dataRange = this.sheet.getDataRange();
     const values = dataRange.getValues();
+    const headers = values[0];
     const newRow = [];
 
     for (const header of headers) {
@@ -61,15 +29,24 @@ class ORM {
     return values;
   }
 
+  // Read all records
   readAll() {
     const dataRange = this.sheet.getDataRange();
     return dataRange.getValues();
+    // const headers = values[0];
+    // const records = [];
+    // //Returning data from multi-dimensional array
+    // for (let i = 1; i < values.length; i++) {
+    //   const record = {};
+    //   for (let j = 0; j < headers.length; j++) {
+    //     record[headers[j]] = values[i][j];
+    //   }
+    //   records.push(record);
+    // }
+    // return records;
   }
 
-  readAllObjects() {
-    return SpreadsheetService.rowsToObjects(this.readAll());
-  }
-
+  // Read a specific record by ID
   readById(id) {
     if (!id) throw new Error("ID is required");
     const dataRange = this.sheet.getDataRange();
@@ -87,11 +64,12 @@ class ORM {
     return null;
   }
 
+  // Update a record by ID
   updateById(id, data) {
     if (!id) throw new Error("ID is required");
     const dataRange = this.sheet.getDataRange();
     const values = dataRange.getValues();
-    const headers = this.getHeaders();
+    const headers = values[0];
     for (let i = 1; i < values.length; i++) {
       if (values[i][0] == id) {
         for (const key in data) {
@@ -107,23 +85,24 @@ class ORM {
     return values;
   }
 
+  // Delete a record by ID
   deleteById(id) {
     if (!id) throw new Error("ID is required");
-    const lastRow = this.sheet.getLastRow();
-    if (lastRow < 2) {
-      return [];
-    }
-    for (let i = 2; i <= lastRow; i++) {
-      const cellValue = this.sheet.getRange(i, 1).getValue();
-      if (cellValue == id) {
-        this.sheet.deleteRow(i);
+    const dataRange = this.sheet.getDataRange();
+    let values = dataRange.getValues();
+    for (let i = 1; i < values.length; i++) {
+      if (values[i][0] == id) {
+        this.sheet.deleteRow(i + 1);
+        values = dataRange.getValues();
+        values.pop();
         break;
       }
     }
 
-    return this.sheet.getDataRange().getValues();
+    return values;
   }
 
+  // Get the next ID
   getNextId() {
     const dataRange = this.sheet.getDataRange();
     const values = dataRange.getValues();
