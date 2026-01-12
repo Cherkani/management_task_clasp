@@ -2,15 +2,271 @@
 <html>
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your App Title</title>
-    <?!= includes("css.html"); ?>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task &amp; Finance Console</title>
+  <?!= include("css.html"); ?>
 </head>
 
 <body>
-    <div id="root"></div>
-    <?!= includes("js.html"); ?>
+  <nav>
+    <ul>
+      <li><a href="#" class="active" data-panel="dashboard">Overview</a></li>
+      <li><a href="#" data-panel="tasks">Tasks</a></li>
+      <li><a href="#" data-panel="finance">Finance</a></li>
+      <li>
+        <a href="https://calendar.google.com/calendar/u/0/r/day" target="_blank" rel="noopener">
+          Google Calendar
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <div class="app-container">
+    <header class="navbar">
+      <div>
+        <p class="overline">Planner</p>
+        <h1>Workspace Control Center</h1>
+        <p class="subline">
+          Capture focused blocks, sync them with Google Calendar, and monitor cash flow in one sidebar.
+        </p>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">
+          <span>Week</span>
+          <select id="weekSelector"></select>
+        </label>
+        <label class="filter-label">
+          <span>Focus day</span>
+          <input type="date" id="taskDateFilter" />
+        </label>
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="panel active" data-panel="dashboard">
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="summary-label">Planned blocks</div>
+            <div class="summary-value" id="summaryTaskCount">0</div>
+            <div class="tiny">Tasks scheduled for the selected day.</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Calendar events</div>
+            <div class="summary-value" id="summaryCalendarCount">0</div>
+            <div class="tiny">Google Calendar snapshot.</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Income (7d)</div>
+            <div class="summary-value" id="summaryIncome">0</div>
+            <div class="tiny">Money coming in.</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Expenses (7d)</div>
+            <div class="summary-value" id="summaryExpense">0</div>
+            <div class="tiny">Recent outgoing amounts.</div>
+          </div>
+        </div>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="summary-label">Next calendar items</div>
+            <ul class="dashboard-list" id="dashboardCalendar"></ul>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Latest finance entries</div>
+            <ul class="dashboard-list" id="dashboardFinance"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" data-panel="tasks">
+        <div class="panel-header">
+          <div>
+            <p class="overline">Tasks</p>
+            <h2>Create a focused block</h2>
+          </div>
+          <div id="taskStatus" class="status-text"></div>
+        </div>
+        <form id="taskForm" class="card form-card">
+        <div class="form-grid">
+            <label>
+              <span>Title</span>
+              <input type="text" name="title" placeholder="Deep work sprint" required />
+            </label>
+            <label>
+              <span>Category</span>
+              <input type="text" name="category" placeholder="Work / Study / Health" />
+            </label>
+            <label>
+              <span>Date</span>
+              <input type="date" name="date" required />
+            </label>
+            <label>
+              <span>Start</span>
+              <input type="time" name="start" required />
+            </label>
+            <label>
+              <span>End</span>
+              <input type="time" name="end" required />
+            </label>
+            <label>
+              <span>Recurring</span>
+              <select name="recurrence">
+                <option value="none">None</option>
+                <option value="daily">Daily (5)</option>
+                <option value="weekly">Weekly (4)</option>
+                <option value="biweekly">Bi-weekly (3)</option>
+              </select>
+            </label>
+            <label>
+              <span>Occurrences</span>
+              <input type="number" name="occurrences" min="1" max="10" value="1" />
+            </label>
+          </div>
+          <label>
+            <span>Description</span>
+            <textarea name="description" rows="2" placeholder="Optional context"></textarea>
+          </label>
+          <div class="actions">
+            <button type="submit" class="primary">Save &amp; sync</button>
+          </div>
+        </form>
+
+        <div class="card">
+          <div class="panel-header">
+            <h3>Scheduled tasks</h3>
+            <p class="tiny">Entries live in the “Tasks” sheet.</p>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Time</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="taskTableBody">
+                <tr><td colspan="4">No tasks yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="kanban-board">
+            <div class="kanban-column" data-status="Planned">
+              <h4>Planned</h4>
+              <div class="kanban-list" id="kanbanPlanned"></div>
+            </div>
+            <div class="kanban-column" data-status="Running">
+              <h4>Running</h4>
+              <div class="kanban-list" id="kanbanRunning"></div>
+            </div>
+            <div class="kanban-column" data-status="Done">
+              <h4>Done</h4>
+              <div class="kanban-list" id="kanbanDone"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="panel-header">
+            <h3>Calendar snapshot</h3>
+            <p class="tiny">Taken directly from Google Calendar.</p>
+          </div>
+          <ul class="agenda-list" id="calendarList">
+            <li>No events.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="panel" data-panel="finance">
+        <div class="panel-header">
+          <div>
+            <p class="overline">Finance</p>
+            <h2>Track cash in/out</h2>
+          </div>
+          <div id="financeStatus" class="status-text"></div>
+        </div>
+        <form id="financeForm" class="card form-card">
+          <div class="form-grid">
+            <label>
+              <span>Date</span>
+              <input type="date" name="date" required />
+            </label>
+            <label>
+              <span>Type</span>
+              <select name="type">
+                <option value="Expense">Expense</option>
+                <option value="Income">Income</option>
+              </select>
+            </label>
+            <label>
+              <span>Category</span>
+              <input type="text" name="category" placeholder="Rent, Freelance…" />
+            </label>
+            <label>
+              <span>Amount</span>
+              <input type="number" name="amount" min="0" step="0.01" required />
+            </label>
+          </div>
+          <label>
+            <span>Description</span>
+            <textarea name="description" rows="2" placeholder="Invoice #25, groceries, etc."></textarea>
+          </label>
+          <div class="actions">
+            <button type="submit" class="primary">Log entry</button>
+          </div>
+        </form>
+
+        <div class="card">
+          <div class="panel-header">
+            <h3>Recent entries</h3>
+            <p class="tiny">Latest rows from the Finance sheet.</p>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Category</th>
+                  <th>Description</th>
+                  <th class="align-right">Amount</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="financeTableBody">
+                <tr><td colspan="6">No entries yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="panel-header">
+            <h3>Category insights</h3>
+            <p class="tiny">Top categories by total amount.</p>
+          </div>
+          <div class="insights" id="financeInsights">
+            <div class="insight">
+              <span>Income</span>
+              <strong id="insightIncome">0</strong>
+            </div>
+            <div class="insight">
+              <span>Expenses</span>
+              <strong id="insightExpense">0</strong>
+            </div>
+            <div class="insight">
+              <span>Top category</span>
+              <strong id="insightTopCategory">—</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <?!= include("app.html"); ?>
 </body>
 
 </html>

@@ -1,0 +1,502 @@
+<script>
+  function formatISODate(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString().split("T")[0];
+  }
+
+  function startOfWeek(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = (day + 6) % 7;
+    d.setDate(d.getDate() - diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  function endOfWeek(date) {
+    const d = new Date(date);
+    d.setDate(d.getDate() + 6);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  function addDays(date, amount) {
+    const d = new Date(date);
+    d.setDate(d.getDate() + amount);
+    return d;
+  }
+
+  const initialWeekStart = startOfWeek(new Date());
+  const initialWeekEnd = endOfWeek(initialWeekStart);
+
+  const state = {
+    panel: "dashboard",
+    weekStart: initialWeekStart,
+    weekEnd: initialWeekEnd,
+    selectedDate: formatISODate(initialWeekStart),
+    tasks: [],
+    calendar: [],
+    finance: [],
+  };
+
+  document.addEventListener("DOMContentLoaded", () => {
+    populateWeekSelector();
+    setupNav();
+    setupForms();
+    initKanbanDroppers();
+    setFormDefaults();
+    refreshTasks();
+    refreshFinance();
+  });
+
+  function setupNav() {
+    document.querySelectorAll("nav a[data-panel]").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        setPanel(link.dataset.panel);
+      });
+    });
+  }
+
+  function setPanel(panel) {
+    state.panel = panel;
+    document.querySelectorAll("nav a[data-panel]").forEach((link) => {
+      link.classList.toggle("active", link.dataset.panel === panel);
+    });
+    document.querySelectorAll(".panel").forEach((section) => {
+      section.classList.toggle("active", section.dataset.panel === panel);
+    });
+  }
+
+  function setupForms() {
+    const dateFilter = document.getElementById("taskDateFilter");
+    if (dateFilter) {
+      dateFilter.value = state.selectedDate;
+      dateFilter.addEventListener("change", (event) => {
+        const value = event.target.value || state.selectedDate;
+        updateSelectedDate(value);
+      });
+    }
+
+    const taskForm = document.getElementById("taskForm");
+    taskForm?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const payload = {
+        title: taskForm.title.value,
+        category: taskForm.category.value,
+        description: taskForm.description.value,
+        date: taskForm.date.value,
+        startTime: taskForm.start.value,
+        endTime: taskForm.end.value,
+      };
+      const recurrence = taskForm.recurrence.value;
+      const occurrences = Number(taskForm.occurrences.value || 1);
+      setStatus("taskStatus", "Saving…");
+      const runner = google.script.run
+        .withSuccessHandler(() => {
+          setStatus("taskStatus", "Task saved.");
+          taskForm.reset();
+          taskForm.date.value = state.selectedDate;
+          refreshTasks();
+        })
+        .withFailureHandler((error) =>
+          setStatus("taskStatus", error.message || "Unable to save task", true)
+        );
+      if (recurrence && recurrence !== "none") {
+        runner.scheduleRecurringTasks({
+          ...payload,
+          frequency: recurrence,
+          occurrences,
+        });
+      } else {
+        runner.scheduleTask(payload);
+      }
+    });
+
+    const financeForm = document.getElementById("financeForm");
+    financeForm?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const payload = {
+        date: financeForm.date.value,
+        type: financeForm.type.value,
+        category: financeForm.category.value,
+        description: financeForm.description.value,
+        amount: financeForm.amount.value,
+      };
+      setStatus("financeStatus", "Saving entry…");
+      google.script.run
+        .withSuccessHandler(() => {
+          setStatus("financeStatus", "Entry logged.");
+          financeForm.reset();
+          refreshFinance();
+        })
+        .withFailureHandler((error) =>
+          setStatus("financeStatus", error.message || "Unable to save entry", true)
+        )
+        .addFinanceEntry(payload);
+    });
+  }
+
+  function populateWeekSelector() {
+    const select = document.getElementById("weekSelector");
+    if (!select) return;
+    const options = [-1, 0, 1].map((offset) => {
+      const base = addDays(new Date(), offset * 7);
+      const start = startOfWeek(base);
+      const end = endOfWeek(start);
+      return {
+        value: formatISODate(start),
+        label: `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`,
+      };
+    });
+    select.innerHTML = options
+      .map(
+        (opt) => `<option value="${opt.value}">${offsetLabel(opt.value, opt.label)}</option>`
+      )
+      .join("");
+    select.value = formatISODate(state.weekStart);
+    select.addEventListener("change", (event) => {
+      const start = startOfWeek(new Date(event.target.value));
+      setWeekRange(start);
+    });
+  }
+
+  function offsetLabel(value, label) {
+    const current = formatISODate(state.weekStart);
+    if (value === current) return `This week (${label})`;
+    const nextWeek = formatISODate(addDays(state.weekStart, 7));
+    const prevWeek = formatISODate(addDays(state.weekStart, -7));
+    if (value === nextWeek) return `Next week (${label})`;
+    if (value === prevWeek) return `Last week (${label})`;
+    return label;
+  }
+
+  function setWeekRange(startDate) {
+    state.weekStart = startOfWeek(startDate);
+    state.weekEnd = endOfWeek(state.weekStart);
+    updateSelectedDate(formatISODate(state.weekStart));
+    const selector = document.getElementById("weekSelector");
+    if (selector) selector.value = formatISODate(state.weekStart);
+    refreshTasks();
+  }
+
+  function updateSelectedDate(dateString) {
+    state.selectedDate = dateString;
+    const dateFilter = document.getElementById("taskDateFilter");
+    if (dateFilter) dateFilter.value = dateString;
+    setFormDefaults();
+  }
+
+  function setFormDefaults() {
+    const taskForm = document.getElementById("taskForm");
+    if (taskForm && !taskForm.date.value) {
+      taskForm.date.value = state.selectedDate;
+    }
+    const financeForm = document.getElementById("financeForm");
+    if (financeForm && !financeForm.date.value) {
+      financeForm.date.value = formatISODate(new Date());
+    }
+  }
+
+  function initKanbanDroppers() {
+    document.querySelectorAll(".kanban-list").forEach((list) => {
+      list.addEventListener("dragover", (evt) => evt.preventDefault());
+      list.addEventListener("drop", (evt) => {
+        evt.preventDefault();
+        const id = evt.dataTransfer.getData("text/plain");
+        const column = list.closest(".kanban-column");
+        if (!id || !column) return;
+        const newStatus = column.dataset.status;
+        setStatus("taskStatus", "Updating task…");
+        google.script.run
+          .withSuccessHandler(() => {
+            setStatus("taskStatus", "Task updated.");
+            refreshTasks();
+          })
+          .withFailureHandler((error) =>
+            setStatus("taskStatus", error.message || "Unable to update task", true)
+          )
+          .updateTaskStatus({ id, status: newStatus, sheetName: "Tasks" });
+      });
+    });
+  }
+
+  function enableKanbanDrag() {
+    document.querySelectorAll(".kanban-card").forEach((card) => {
+      card.addEventListener("dragstart", (evt) => {
+        evt.dataTransfer.setData("text/plain", card.dataset.id);
+      });
+    });
+  }
+
+  function refreshTasks() {
+    const start = formatISODate(state.weekStart);
+    const end = formatISODate(state.weekEnd);
+    google.script.run
+      .withSuccessHandler((raw) => {
+        state.tasks = parseJson(raw);
+        renderTasks();
+        renderKanban();
+        updateDashboard();
+      })
+      .withFailureHandler((error) => setStatus("taskStatus", error.message || "Unable to load tasks", true))
+      .getScheduledTasksInRange({ startDate: start, endDate: end });
+
+    google.script.run
+      .withSuccessHandler((raw) => {
+        state.calendar = parseJson(raw);
+        renderCalendar();
+        updateDashboard();
+      })
+      .withFailureHandler((error) => setStatus("taskStatus", error.message || "Unable to load calendar", true))
+      .getCalendarEventsForRange({ startDate: start, endDate: end });
+  }
+
+  function refreshFinance() {
+    google.script.run
+      .withSuccessHandler((raw) => {
+        state.finance = parseJson(raw);
+        renderFinance();
+        updateDashboard();
+      })
+      .withFailureHandler((error) =>
+        setStatus("financeStatus", error.message || "Unable to load entries", true)
+      )
+      .getFinanceEntries();
+  }
+
+  function renderTasks() {
+    const tbody = document.getElementById("taskTableBody");
+    if (!tbody) return;
+    if (!state.tasks.length) {
+      tbody.innerHTML = `<tr><td colspan="4">No tasks for this week.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = state.tasks
+      .map(
+        (task) => `
+        <tr>
+          <td>
+            <strong>${escapeHtml(task.title)}</strong>
+            <div class="table-meta">${escapeHtml(task.description || "")}</div>
+          </td>
+          <td>${formatRange(task.start, task.end)}</td>
+          <td><span class="status-chip">${escapeHtml(task.status || "Planned")}</span></td>
+          <td class="align-right">
+            <button type="button" class="ghost" onclick="deleteTask('${task.id}')">Delete</button>
+          </td>
+        </tr>`
+      )
+      .join("");
+  }
+
+  function renderKanban() {
+    const columns = {
+      Planned: [],
+      Running: [],
+      Done: [],
+    };
+    state.tasks.forEach((task) => {
+      const status = task.status || "Planned";
+      (columns[status] || columns.Planned).push(task);
+    });
+    Object.entries(columns).forEach(([status, items]) => {
+      const container = document.getElementById(`kanban${status}`);
+      if (!container) return;
+      if (!items.length) {
+        container.innerHTML = `<div class="kanban-empty">Drop tasks here</div>`;
+        return;
+      }
+      container.innerHTML = items
+        .map(
+          (task) => `
+        <div class="kanban-card" draggable="true" data-id="${task.id}" data-status="${status}">
+          <strong>${escapeHtml(task.title)}</strong>
+          <div>${formatRange(task.start, task.end)}</div>
+          <p class="agenda-meta">${escapeHtml(task.description || "")}</p>
+        </div>`
+        )
+        .join("");
+    });
+    enableKanbanDrag();
+  }
+
+  function renderCalendar() {
+    const list = document.getElementById("calendarList");
+    if (!list) return;
+    if (!state.calendar.length) {
+      list.innerHTML = "<li>No calendar events this week.</li>";
+      return;
+    }
+    list.innerHTML = state.calendar
+      .map(
+        (event) => `
+        <li>
+          <div class="agenda-item">
+            <strong>${escapeHtml(event.title)}</strong>
+            <span>${formatRange(event.start, event.end)}</span>
+          </div>
+          <p class="agenda-meta">${escapeHtml(event.location || "")}</p>
+        </li>`
+      )
+      .join("");
+  }
+
+  function renderFinance() {
+    const tbody = document.getElementById("financeTableBody");
+    if (!tbody) return;
+    if (!state.finance.length) {
+      tbody.innerHTML = `<tr><td colspan="6">No entries yet.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = state.finance
+      .slice(0, 25)
+      .map(
+        (entry) => `
+        <tr>
+          <td>${escapeHtml(entry.date || "")}</td>
+          <td>${escapeHtml(entry.type || "")}</td>
+          <td>${escapeHtml(entry.category || "")}</td>
+          <td>${escapeHtml(entry.description || "")}</td>
+          <td class="align-right">${formatCurrency(entry.amount)}</td>
+          <td class="align-right">
+            <button type="button" class="ghost" onclick="deleteFinanceEntry('${entry.id}')">Delete</button>
+          </td>
+        </tr>`
+      )
+      .join("");
+  }
+
+  function updateDashboard() {
+    document.getElementById("summaryTaskCount").textContent = state.tasks.length;
+    document.getElementById("summaryCalendarCount").textContent = state.calendar.length;
+    const insights = calculateFinanceInsights();
+    document.getElementById("summaryIncome").textContent = formatCurrency(insights.income);
+    document.getElementById("summaryExpense").textContent = formatCurrency(insights.expense);
+    document.getElementById("insightIncome").textContent = formatCurrency(insights.income);
+    document.getElementById("insightExpense").textContent = formatCurrency(insights.expense);
+    document.getElementById("insightTopCategory").textContent = insights.topCategory || "—";
+    document.getElementById("dashboardCalendar").innerHTML =
+      state.calendar
+        .slice(0, 5)
+        .map(
+          (event) => `
+          <li>
+            <strong>${escapeHtml(event.title)}</strong>
+            <span>${formatRange(event.start, event.end)}</span>
+          </li>`
+        )
+        .join("") || "<li>No upcoming events.</li>";
+    document.getElementById("dashboardFinance").innerHTML =
+      state.finance
+        .slice(0, 5)
+        .map(
+          (entry) => `
+          <li>
+            <strong>${escapeHtml(entry.category || entry.type || "")}</strong>
+            <span>${formatCurrency(entry.amount)}</span>
+          </li>`
+        )
+        .join("") || "<li>No recent entries.</li>";
+  }
+
+  function calculateFinanceInsights() {
+    const totals = {};
+    let income = 0;
+    let expense = 0;
+    state.finance.forEach((entry) => {
+      const bucket = entry.type === "Income" ? "Income" : "Expense";
+      const amount = Number(entry.amount || 0);
+      const key = entry.category || bucket;
+      totals[key] = (totals[key] || 0) + amount;
+      if (bucket === "Income") income += amount;
+      else expense += amount;
+    });
+    const topCategory = Object.entries(totals).sort((a, b) => b[1] - a[1])[0]?.[0];
+    return { income, expense, topCategory };
+  }
+
+  function deleteTask(id) {
+    if (!id) return;
+    setStatus("taskStatus", "Removing task…");
+    google.script.run
+      .withSuccessHandler(() => {
+        setStatus("taskStatus", "Task removed.");
+        refreshTasks();
+      })
+      .withFailureHandler((error) =>
+        setStatus("taskStatus", error.message || "Unable to delete task", true)
+      )
+      .deleteTask({ id, sheetName: "Tasks" });
+  }
+
+  function deleteFinanceEntry(id) {
+    if (!id) return;
+    setStatus("financeStatus", "Removing entry…");
+    google.script.run
+      .withSuccessHandler(() => {
+        setStatus("financeStatus", "Entry deleted.");
+        refreshFinance();
+      })
+      .withFailureHandler((error) =>
+        setStatus("financeStatus", error.message || "Unable to delete entry", true)
+      )
+      .deleteFinanceEntry(id);
+  }
+
+  function parseJson(raw, fallback = []) {
+    if (!raw) return fallback;
+    try {
+      return typeof raw === "string" ? JSON.parse(raw) : raw;
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  function formatRange(start, end) {
+    if (!start && !end) return "—";
+    const startDate = start ? new Date(start) : null;
+    const endDate = end ? new Date(end) : null;
+    const startStr = startDate
+      ? startDate.toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })
+      : "";
+    const endStr = endDate
+      ? endDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      : "";
+    return `${startStr} – ${endStr}`.trim();
+  }
+
+  function escapeHtml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function formatCurrency(value) {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 2,
+    }).format(Number(value) || 0);
+  }
+
+  function setStatus(id, message, isError = false) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = message;
+    el.classList.toggle("error", Boolean(isError));
+    if (!message) return;
+    setTimeout(() => {
+      if (el.textContent === message) {
+        el.textContent = "";
+        el.classList.remove("error");
+      }
+    }, 3000);
+  }
+
+  window.deleteTask = deleteTask;
+  window.deleteFinanceEntry = deleteFinanceEntry;
+</script>
