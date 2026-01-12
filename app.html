@@ -222,10 +222,20 @@
     });
   }
 
-  function enableKanbanDrag() {
+function enableKanbanDrag() {
     document.querySelectorAll(".kanban-card").forEach((card) => {
       card.addEventListener("dragstart", (evt) => {
         evt.dataTransfer.setData("text/plain", card.dataset.id);
+        card.classList.add("dragging");
+        const rect = card.getBoundingClientRect();
+        const offsetX = rect.width / 2;
+        const offsetY = rect.height / 2;
+        if (evt.dataTransfer.setDragImage) {
+          evt.dataTransfer.setDragImage(card, offsetX, offsetY);
+        }
+      });
+      card.addEventListener("dragend", () => {
+        card.classList.remove("dragging");
       });
     });
   }
