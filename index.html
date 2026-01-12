@@ -8,40 +8,40 @@
   <?!= include("css.html"); ?>
 </head>
 
-<body class="bg-slate-100 text-slate-900">
+<body class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-slate-100">
   <div class="flex min-h-screen">
-    <nav class="w-64 bg-slate-900 text-slate-200 flex flex-col gap-6 p-6">
+    <nav class="w-64 min-h-screen bg-slate-950/80 backdrop-blur flex flex-col gap-6 p-6">
       <div>
         <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Planner</p>
         <p class="text-lg font-semibold text-white">Workspace Console</p>
       </div>
-      <ul class="space-y-2 text-sm font-medium">
+      <ul class="space-y-2 text-sm font-medium text-slate-300">
         <li>
-          <a href="#" class="active block rounded-xl px-4 py-2 transition hover:bg-white/10" data-panel="dashboard">
+          <a href="#" class="active block rounded-2xl px-4 py-2 transition hover:bg-white/10" data-panel="dashboard">
             Overview
           </a>
         </li>
         <li>
-          <a href="#" class="block rounded-xl px-4 py-2 transition hover:bg-white/10" data-panel="tasks">
+          <a href="#" class="block rounded-2xl px-4 py-2 transition hover:bg-white/10" data-panel="tasks">
             Tasks
           </a>
         </li>
         <li>
-          <a href="#" class="block rounded-xl px-4 py-2 transition hover:bg-white/10" data-panel="finance">
+          <a href="#" class="block rounded-2xl px-4 py-2 transition hover:bg-white/10" data-panel="finance">
             Finance
           </a>
         </li>
       </ul>
       <div class="mt-auto">
         <a href="https://calendar.google.com/calendar/u/0/r/day" target="_blank" rel="noopener"
-          class="inline-flex items-center justify-center rounded-xl border border-white/20 px-4 py-2 text-sm text-white hover:bg-white/10">
+          class="inline-flex items-center justify-center rounded-2xl border border-white/20 px-4 py-2 text-sm text-white hover:bg-white/10">
           Google Calendar
         </a>
       </div>
     </nav>
 
-    <div class="flex-1 p-6 lg:p-10">
-      <header class="flex flex-col gap-6 rounded-3xl bg-white/90 p-6 shadow-lg ring-1 ring-slate-100 lg:flex-row lg:items-center lg:justify-between">
+    <div class="flex-1 p-4 sm:p-6 lg:p-10">
+      <header class="flex flex-col gap-6 rounded-[32px] bg-white/95 p-6 shadow-2xl ring-1 ring-white/40 lg:flex-row lg:items-center lg:justify-between">
         <div class="space-y-2">
           <p class="text-xs uppercase tracking-[0.5em] text-indigo-500">Planner</p>
           <h1 class="text-3xl font-semibold text-slate-900">Workspace Control Center</h1>
@@ -67,36 +67,36 @@
       <main class="mt-8 space-y-8">
         <section class="panel active space-y-6" data-panel="dashboard">
           <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-              <div class="text-xs uppercase tracking-widest text-slate-400">Planned blocks</div>
-              <div class="mt-3 text-3xl font-semibold" id="summaryTaskCount">0</div>
+            <div class="rounded-[28px] bg-white/95 p-5 shadow-lg ring-1 ring-slate-100">
+              <div class="text-xs uppercase tracking-[0.5em] text-slate-400">Planned blocks</div>
+              <div class="mt-3 text-3xl font-semibold text-slate-900" id="summaryTaskCount">0</div>
               <p class="text-sm text-slate-500 mt-1">Tasks scheduled for the selected day.</p>
             </div>
-            <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-              <div class="text-xs uppercase tracking-widest text-slate-400">Calendar events</div>
-              <div class="mt-3 text-3xl font-semibold" id="summaryCalendarCount">0</div>
+            <div class="rounded-[28px] bg-white/95 p-5 shadow-lg ring-1 ring-slate-100">
+              <div class="text-xs uppercase tracking-[0.5em] text-slate-400">Calendar events</div>
+              <div class="mt-3 text-3xl font-semibold text-slate-900" id="summaryCalendarCount">0</div>
               <p class="text-sm text-slate-500 mt-1">Google Calendar snapshot.</p>
             </div>
-            <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-              <div class="text-xs uppercase tracking-widest text-slate-400">Income (7d)</div>
+            <div class="rounded-[28px] bg-gradient-to-br from-emerald-50 to-white p-5 shadow-lg ring-1 ring-emerald-100">
+              <div class="text-xs uppercase tracking-[0.5em] text-emerald-500">Income (7d)</div>
               <div class="mt-3 text-3xl font-semibold text-emerald-600" id="summaryIncome">0</div>
               <p class="text-sm text-slate-500 mt-1">Money coming in.</p>
             </div>
-            <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-              <div class="text-xs uppercase tracking-widest text-slate-400">Expenses (7d)</div>
+            <div class="rounded-[28px] bg-gradient-to-br from-rose-50 to-white p-5 shadow-lg ring-1 ring-rose-100">
+              <div class="text-xs uppercase tracking-[0.5em] text-rose-500">Expenses (7d)</div>
               <div class="mt-3 text-3xl font-semibold text-rose-600" id="summaryExpense">0</div>
               <p class="text-sm text-slate-500 mt-1">Recent outgoing amounts.</p>
             </div>
           </div>
           <div class="grid gap-6 md:grid-cols-2">
-            <div class="flex flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-              <div class="text-xs uppercase tracking-widest text-slate-400">Next calendar items</div>
+            <div class="flex flex-col rounded-[28px] bg-white/95 p-5 shadow-lg ring-1 ring-slate-100">
+              <div class="text-xs uppercase tracking-[0.5em] text-slate-400">Next calendar items</div>
               <ul class="mt-4 space-y-3 text-sm text-slate-600" id="dashboardCalendar">
                 <li class="text-slate-400">No events.</li>
               </ul>
             </div>
-            <div class="flex flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-              <div class="text-xs uppercase tracking-widest text-slate-400">Latest finance entries</div>
+            <div class="flex flex-col rounded-[28px] bg-white/95 p-5 shadow-lg ring-1 ring-slate-100">
+              <div class="text-xs uppercase tracking-[0.5em] text-slate-400">Latest finance entries</div>
               <ul class="mt-4 space-y-3 text-sm text-slate-600" id="dashboardFinance">
                 <li class="text-slate-400">No entries.</li>
               </ul>
@@ -110,7 +110,7 @@
               <p class="text-xs uppercase tracking-[0.5em] text-indigo-500">Tasks</p>
               <h2 class="text-2xl font-semibold">Create a focused block</h2>
             </div>
-            <div id="taskStatus" class="text-sm text-slate-500"></div>
+            <div id="taskStatus" class="text-sm text-slate-400"></div>
           </div>
           <form id="taskForm" class="space-y-4 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
             <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -162,50 +162,90 @@
             </label>
             <div class="flex justify-end">
               <button type="submit"
-                class="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-500">
+                class="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2 text-sm font-semibold text-white shadow hover:brightness-110">
                 Save &amp; sync
               </button>
             </div>
           </form>
 
-          <div class="space-y-6 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-            <div class="flex flex-col gap-1">
-              <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold">Scheduled tasks</h3>
-                <p class="text-xs uppercase tracking-[0.5em] text-slate-400">Tasks sheet</p>
+          <div class="grid gap-6 xl:grid-cols-3">
+            <div class="xl:col-span-2">
+              <div id="taskBoard" class="relative space-y-6 rounded-[32px] bg-white p-6 shadow-xl ring-1 ring-white/70">
+                <div id="taskLoader"
+                  class="pointer-events-none absolute inset-0 hidden items-center justify-center rounded-[32px] bg-white/90 text-sm font-medium text-slate-500">
+                  <div class="flex items-center gap-2">
+                    <span class="h-4 w-4 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent"></span>
+                    Loading tasks…
+                  </div>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold">Scheduled tasks</h3>
+                    <p class="text-xs uppercase tracking-[0.5em] text-slate-400">Tasks sheet</p>
+                  </div>
+                </div>
+                <div class="overflow-hidden rounded-2xl border border-slate-100">
+                  <table class="min-w-full divide-y divide-slate-100 text-sm">
+                    <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                      <tr>
+                        <th class="px-4 py-3 text-left">Title</th>
+                        <th class="px-4 py-3 text-left">Time</th>
+                        <th class="px-4 py-3 text-left">Status</th>
+                        <th class="px-4 py-3 text-right"></th>
+                      </tr>
+                    </thead>
+                    <tbody id="taskTableBody" class="divide-y divide-slate-100 bg-white">
+                      <tr>
+                        <td colspan="4" class="px-4 py-4 text-center text-slate-400">No tasks yet.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="grid gap-4 lg:grid-cols-3">
+                  <div
+                    class="kanban-column rounded-2xl border border-dashed border-sky-100 bg-gradient-to-b from-sky-50/80 to-white p-4 shadow-inner"
+                    data-status="Planned">
+                    <div class="rounded-2xl bg-sky-100/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.6em] text-sky-700">
+                      Planned
+                    </div>
+                    <div class="kanban-list mt-4 flex flex-col gap-3" id="kanbanPlanned"></div>
+                  </div>
+                  <div
+                    class="kanban-column rounded-2xl border border-dashed border-amber-100 bg-gradient-to-b from-amber-50/80 to-white p-4 shadow-inner"
+                    data-status="Running">
+                    <div class="rounded-2xl bg-amber-100/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.6em] text-amber-700">
+                      Running
+                    </div>
+                    <div class="kanban-list mt-4 flex flex-col gap-3" id="kanbanRunning"></div>
+                  </div>
+                  <div
+                    class="kanban-column rounded-2xl border border-dashed border-emerald-100 bg-gradient-to-b from-emerald-50/80 to-white p-4 shadow-inner"
+                    data-status="Done">
+                    <div class="rounded-2xl bg-emerald-100/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.6em] text-emerald-700">
+                      Done
+                    </div>
+                    <div class="kanban-list mt-4 flex flex-col gap-3" id="kanbanDone"></div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div class="overflow-hidden rounded-2xl border border-slate-100">
-              <table class="min-w-full divide-y divide-slate-100 text-sm">
-                <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th class="px-4 py-3 text-left">Title</th>
-                    <th class="px-4 py-3 text-left">Time</th>
-                    <th class="px-4 py-3 text-left">Status</th>
-                    <th class="px-4 py-3 text-right"></th>
-                  </tr>
-                </thead>
-                <tbody id="taskTableBody" class="divide-y divide-slate-100 bg-white">
-                  <tr>
-                    <td colspan="4" class="px-4 py-4 text-center text-slate-400">No tasks yet.</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="grid gap-4 lg:grid-cols-3">
-              <div class="kanban-column rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4" data-status="Planned">
-                <h4 class="text-xs uppercase tracking-[0.5em] text-slate-400">Planned</h4>
-                <div class="kanban-list mt-4 flex flex-col gap-3" id="kanbanPlanned"></div>
+            <aside class="rounded-[32px] bg-white/90 p-6 shadow-xl ring-1 ring-white/70">
+              <div>
+                <p class="text-xs uppercase tracking-[0.5em] text-indigo-500">Status snapshot</p>
+                <div id="taskSidebarCards" class="mt-4 space-y-3">
+                  <div class="rounded-2xl border border-dashed border-slate-200 p-4 text-center text-sm text-slate-400">
+                    No tasks yet.
+                  </div>
+                </div>
               </div>
-              <div class="kanban-column rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4" data-status="Running">
-                <h4 class="text-xs uppercase tracking-[0.5em] text-slate-400">Running</h4>
-                <div class="kanban-list mt-4 flex flex-col gap-3" id="kanbanRunning"></div>
+              <div class="mt-6">
+                <p class="text-xs uppercase tracking-[0.5em] text-indigo-500">Next focus</p>
+                <div id="taskUpcoming"
+                  class="mt-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 text-sm text-slate-500">
+                  Pick a date to see what's next.
+                </div>
               </div>
-              <div class="kanban-column rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4" data-status="Done">
-                <h4 class="text-xs uppercase tracking-[0.5em] text-slate-400">Done</h4>
-                <div class="kanban-list mt-4 flex flex-col gap-3" id="kanbanDone"></div>
-              </div>
-            </div>
+            </aside>
           </div>
 
           <div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
@@ -225,7 +265,7 @@
               <p class="text-xs uppercase tracking-[0.5em] text-indigo-500">Finance</p>
               <h2 class="text-2xl font-semibold">Track cash in/out</h2>
             </div>
-            <div id="financeStatus" class="text-sm text-slate-500"></div>
+            <div id="financeStatus" class="text-sm text-slate-400"></div>
           </div>
           <form id="financeForm" class="space-y-4 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
             <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -260,13 +300,13 @@
             </label>
             <div class="flex justify-end">
               <button type="submit"
-                class="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-500">
+                class="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2 text-sm font-semibold text-white shadow hover:brightness-110">
                 Log entry
               </button>
             </div>
           </form>
 
-          <div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+          <div class="rounded-[32px] bg-white p-6 shadow-xl ring-1 ring-white/70">
             <div class="flex items-center justify-between">
               <h3 class="text-lg font-semibold">Recent entries</h3>
               <p class="text-xs uppercase tracking-[0.5em] text-slate-400">Finance sheet</p>
@@ -292,7 +332,7 @@
             </div>
           </div>
 
-          <div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+          <div class="rounded-[32px] bg-white p-6 shadow-xl ring-1 ring-white/70">
             <div class="flex items-center justify-between">
               <h3 class="text-lg font-semibold">Category insights</h3>
               <p class="text-xs uppercase tracking-[0.5em] text-slate-400">Totals</p>
