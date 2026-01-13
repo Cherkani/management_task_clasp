@@ -30,6 +30,8 @@
   const initialWeekStart = startOfWeek(new Date());
   const initialWeekEnd = endOfWeek(initialWeekStart);
 
+  const TEMP_TASK_PREFIX = "temp-task-";
+
   const state = {
     panel: "dashboard",
     weekStart: initialWeekStart,
@@ -38,27 +40,6 @@
     tasks: [],
     calendar: [],
     finance: [],
-  };
-  let taskLoaderCount = 0;
-  const STATUS_ACCENTS = {
-    Planned: {
-      chip: "border-sky-200 bg-sky-50 text-sky-700",
-      cardBorder: "border-sky-100",
-      cardBg: "from-sky-50/80 to-white",
-      label: "text-sky-600",
-    },
-    Running: {
-      chip: "border-amber-200 bg-amber-50 text-amber-700",
-      cardBorder: "border-amber-100",
-      cardBg: "from-amber-50/80 to-white",
-      label: "text-amber-600",
-    },
-    Done: {
-      chip: "border-emerald-200 bg-emerald-50 text-emerald-700",
-      cardBorder: "border-emerald-100",
-      cardBg: "from-emerald-50/80 to-white",
-      label: "text-emerald-600",
-    },
   };
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -113,17 +94,32 @@
       };
       const recurrence = taskForm.recurrence.value;
       const occurrences = Number(taskForm.occurrences.value || 1);
-      setStatus("taskStatus", "Saving…");
+      const finishStatus = startStatusAction("taskStatus", "Saving…");
+      const isRecurring = recurrence && recurrence !== "none" && occurrences > 1;
+      let localTask = null;
+      if (!isRecurring) {
+        localTask = addLocalTask(buildLocalTaskFromPayload(payload));
+      }
       const runner = google.script.run
-        .withSuccessHandler(() => {
-          setStatus("taskStatus", "Task saved.");
+        .withSuccessHandler((result) => {
+          finishStatus("Task saved.");
           taskForm.reset();
           taskForm.date.value = state.selectedDate;
-          refreshTasks();
+          if (localTask && result?.taskId) {
+            localTask.id = String(result.taskId);
+          }
+          if (isRecurring || !localTask) {
+            refreshTasks();
+          }
         })
-        .withFailureHandler((error) =>
-          setStatus("taskStatus", error.message || "Unable to save task", true)
-        );
+        .withFailureHandler((error) => {
+          finishStatus(error.message || "Unable to save task", true);
+          if (localTask) {
+            removeLocalTaskById(localTask.id);
+          } else {
+            refreshTasks();
+          }
+        });
       if (recurrence && recurrence !== "none") {
         runner.scheduleRecurringTasks({
           ...payload,
@@ -145,15 +141,15 @@
         description: financeForm.description.value,
         amount: financeForm.amount.value,
       };
-      setStatus("financeStatus", "Saving entry…");
+      const finishStatus = startStatusAction("financeStatus", "Saving entry…");
       google.script.run
         .withSuccessHandler(() => {
-          setStatus("financeStatus", "Entry logged.");
+          finishStatus("Entry logged.");
           financeForm.reset();
           refreshFinance();
         })
         .withFailureHandler((error) =>
-          setStatus("financeStatus", error.message || "Unable to save entry", true)
+          finishStatus(error.message || "Unable to save entry", true)
         )
         .addFinanceEntry(payload);
     });
@@ -221,31 +217,34 @@
   }
 
   function initKanbanDroppers() {
-    document.querySelectorAll(".kanban-list").forEach((list) => {
-      list.addEventListener("dragover", (evt) => evt.preventDefault());
-      list.addEventListener("drop", (evt) => {
+    const columns = document.querySelectorAll(".kanban-column");
+    const prevent = (evt) => evt.preventDefault();
+    columns.forEach((column) => {
+      const list = column.querySelector(".kanban-list");
+      const handleDrop = (evt) => {
         evt.preventDefault();
-        const id = evt.dataTransfer.getData("text/plain");
-        const column = list.closest(".kanban-column");
-        if (!id || !column) return;
+        const id = evt.dataTransfer?.getData("text/plain");
+        if (!id) return;
         const newStatus = column.dataset.status;
         const change = applyTaskStatusLocally(id, newStatus);
         if (!change.shouldSync) return;
-        setStatus("taskStatus", `Moved to ${newStatus}. Syncing…`);
+        const finishStatus = startStatusAction("taskStatus", `Updating to ${newStatus}…`);
         google.script.run
-          .withSuccessHandler(() => {
-            setStatus("taskStatus", "Status synced.");
-          })
+          .withSuccessHandler(() => finishStatus(`Moved to ${newStatus}.`))
           .withFailureHandler((error) => {
             change.rollback();
-            setStatus("taskStatus", error.message || "Unable to update task", true);
+            finishStatus(error.message || "Unable to update task", true);
           })
           .updateTaskStatus({ id, status: newStatus, sheetName: "Tasks" });
-      });
+      };
+      column.addEventListener("dragover", prevent);
+      column.addEventListener("drop", handleDrop);
+      list?.addEventListener("dragover", prevent);
+      list?.addEventListener("drop", handleDrop);
     });
   }
 
-function enableKanbanDrag() {
+  function enableKanbanDrag() {
     document.querySelectorAll(".kanban-card").forEach((card) => {
       card.addEventListener("dragstart", (evt) => {
         evt.dataTransfer.setData("text/plain", card.dataset.id);
@@ -260,25 +259,24 @@ function enableKanbanDrag() {
       card.addEventListener("dragend", () => {
         card.classList.remove("dragging");
       });
+      card.querySelectorAll(".calendar-link").forEach((link) => {
+        link.addEventListener("mousedown", (evt) => evt.stopPropagation());
+        link.addEventListener("click", (evt) => evt.stopPropagation());
+      });
     });
   }
 
   function refreshTasks() {
     const start = formatISODate(state.weekStart);
     const end = formatISODate(state.weekEnd);
-    setTaskLoader(true);
     google.script.run
       .withSuccessHandler((raw) => {
-        state.tasks = parseJson(raw);
+        state.tasks = parseJson(raw).sort(sortTasksByStart);
         renderTasks();
         renderKanban();
         updateDashboard();
-        setTaskLoader(false);
       })
-      .withFailureHandler((error) => {
-        setTaskLoader(false);
-        setStatus("taskStatus", error.message || "Unable to load tasks", true);
-      })
+      .withFailureHandler((error) => setStatus("taskStatus", error.message || "Unable to load tasks", true))
       .getScheduledTasksInRange({ startDate: start, endDate: end });
 
     google.script.run
@@ -308,30 +306,28 @@ function enableKanbanDrag() {
     const tbody = document.getElementById("taskTableBody");
     if (!tbody) return;
     if (!state.tasks.length) {
-      tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-4 text-center text-slate-400">No tasks for this week.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4">No tasks for this week.</td></tr>`;
       return;
     }
     tbody.innerHTML = state.tasks
-      .map(
-        (task) => {
-          const status = task.status || "Planned";
-          const accent = getStatusAccent(status);
-          return `
+      .map((task) => {
+        const calendarLink = task.calendarEventId
+          ? `<a class="calendar-link" href="${buildCalendarEventUrl(task.calendarEventId)}" target="_blank" rel="noopener">Calendar ↗</a>`
+          : "";
+        return `
         <tr>
-          <td class="px-4 py-4">
-            <p class="font-semibold text-slate-800">${escapeHtml(task.title)}</p>
-            <p class="text-xs text-slate-400">${escapeHtml(task.description || "")}</p>
+          <td>
+            <strong>${escapeHtml(task.title)}</strong>
+            <div class="table-meta">${escapeHtml(task.description || "")}</div>
+            ${calendarLink ? `<div class="table-meta">${calendarLink}</div>` : ""}
           </td>
-          <td class="px-4 py-4 text-sm text-slate-500">${formatRange(task.start, task.end)}</td>
-          <td class="px-4 py-4">
-            <span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${accent.chip}">${escapeHtml(status)}</span>
-          </td>
-          <td class="px-4 py-4 text-right">
-            <button type="button" class="text-sm font-medium text-rose-500 transition hover:text-rose-600" onclick="deleteTask('${task.id}')">Delete</button>
+          <td>${formatRange(task.start, task.end)}</td>
+          <td><span class="status-chip">${escapeHtml(task.status || "Planned")}</span></td>
+          <td class="align-right">
+            <button type="button" class="ghost" onclick="deleteTask('${task.id}')">Delete</button>
           </td>
         </tr>`;
-        }
-      )
+      })
       .join("");
   }
 
@@ -346,46 +342,54 @@ function enableKanbanDrag() {
       (columns[status] || columns.Planned).push(task);
     });
     Object.entries(columns).forEach(([status, items]) => {
-      const accent = getStatusAccent(status);
       const container = document.getElementById(`kanban${status}`);
       if (!container) return;
       if (!items.length) {
-        container.innerHTML = `<div class="rounded-2xl border border-dashed ${accent.cardBorder} bg-white/40 p-4 text-center text-sm text-slate-400">Drop tasks here</div>`;
+        container.innerHTML = `<div class="kanban-empty">Drop tasks here</div>`;
         return;
       }
       container.innerHTML = items
-        .map(
-          (task) => `
-        <div class="kanban-card rounded-2xl border ${accent.cardBorder} bg-white/70 p-4 shadow-sm" draggable="true" data-id="${task.id}" data-status="${status}">
-          <p class="font-semibold text-slate-800">${escapeHtml(task.title)}</p>
-          <p class="text-xs text-slate-500">${formatRange(task.start, task.end)}</p>
-          <p class="text-xs text-slate-400">${escapeHtml(task.description || "")}</p>
-        </div>`
-        )
+        .map((task) => {
+          const calendarLink = task.calendarEventId
+            ? `<a class="calendar-link" href="${buildCalendarEventUrl(task.calendarEventId)}" target="_blank" rel="noopener">Calendar ↗</a>`
+            : "";
+          return `
+        <div class="kanban-card" draggable="true" data-id="${task.id}" data-status="${status}">
+          <div class="flex items-start justify-between gap-2">
+            <strong>${escapeHtml(task.title)}</strong>
+            ${calendarLink}
+          </div>
+          <div>${formatRange(task.start, task.end)}</div>
+          <p class="agenda-meta">${escapeHtml(task.description || "")}</p>
+        </div>`;
+        })
         .join("");
     });
     enableKanbanDrag();
-    renderTaskSidebar();
   }
 
   function renderCalendar() {
     const list = document.getElementById("calendarList");
     if (!list) return;
     if (!state.calendar.length) {
-      list.innerHTML = `<li class="text-slate-400">No calendar events this week.</li>`;
+      list.innerHTML = "<li>No calendar events this week.</li>";
       return;
     }
     list.innerHTML = state.calendar
-      .map(
-        (event) => `
-        <li class="rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
-          <div class="flex items-center justify-between text-sm">
-            <strong class="text-slate-800">${escapeHtml(event.title)}</strong>
-            <span class="text-slate-500">${formatRange(event.start, event.end)}</span>
+      .map((event) => {
+        const eventUrl = event.url || buildCalendarEventUrl(event.id);
+        const title = eventUrl
+          ? `<a class="calendar-link" href="${eventUrl}" target="_blank" rel="noopener">${escapeHtml(event.title)} ↗</a>`
+          : `<strong>${escapeHtml(event.title)}</strong>`;
+        return `
+        <li>
+          <div class="agenda-item">
+            ${title}
+            <span>${formatRange(event.start, event.end)}</span>
           </div>
-          <p class="text-xs text-slate-400">${escapeHtml(event.location || "")}</p>
-        </li>`
-      )
+          <p class="agenda-meta">${escapeHtml(event.location || "")}</p>
+        </li>`;
+      })
       .join("");
   }
 
@@ -393,7 +397,7 @@ function enableKanbanDrag() {
     const tbody = document.getElementById("financeTableBody");
     if (!tbody) return;
     if (!state.finance.length) {
-      tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-slate-400">No entries yet.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6">No entries yet.</td></tr>`;
       return;
     }
     tbody.innerHTML = state.finance
@@ -401,53 +405,17 @@ function enableKanbanDrag() {
       .map(
         (entry) => `
         <tr>
-          <td class="px-4 py-4">${escapeHtml(entry.date || "")}</td>
-          <td class="px-4 py-4">${escapeHtml(entry.type || "")}</td>
-          <td class="px-4 py-4">${escapeHtml(entry.category || "")}</td>
-          <td class="px-4 py-4 text-slate-500">${escapeHtml(entry.description || "")}</td>
-          <td class="px-4 py-4 text-right font-semibold">${formatCurrency(entry.amount)}</td>
-          <td class="px-4 py-4 text-right">
-            <button type="button" class="text-sm font-medium text-rose-500 transition hover:text-rose-600" onclick="deleteFinanceEntry('${entry.id}')">Delete</button>
+          <td>${escapeHtml(entry.date || "")}</td>
+          <td>${escapeHtml(entry.type || "")}</td>
+          <td>${escapeHtml(entry.category || "")}</td>
+          <td>${escapeHtml(entry.description || "")}</td>
+          <td class="align-right">${formatCurrency(entry.amount)}</td>
+          <td class="align-right">
+            <button type="button" class="ghost" onclick="deleteFinanceEntry('${entry.id}')">Delete</button>
           </td>
         </tr>`
       )
       .join("");
-  }
-
-  function renderTaskSidebar() {
-    const cards = document.getElementById("taskSidebarCards");
-    const upcoming = document.getElementById("taskUpcoming");
-    if (!cards || !upcoming) return;
-    const statuses = ["Planned", "Running", "Done"];
-    const blocks = statuses
-      .map((status) => {
-        const accent = getStatusAccent(status);
-        const count = state.tasks.filter((task) => (task.status || "Planned") === status).length;
-        return `
-        <div class="rounded-2xl border ${accent.cardBorder} bg-gradient-to-br ${accent.cardBg} p-4 shadow-sm">
-          <div class="text-[11px] font-semibold uppercase tracking-[0.5em] ${accent.label}">${status}</div>
-          <div class="mt-2 text-3xl font-semibold text-slate-900">${count}</div>
-          <p class="text-xs text-slate-500">blocks tracked</p>
-        </div>`;
-      })
-      .join("");
-    cards.innerHTML =
-      blocks ||
-      `<div class="rounded-2xl border border-dashed border-slate-200 p-4 text-center text-sm text-slate-400">No tasks yet.</div>`;
-    const upcomingTask = getUpcomingTask();
-    if (!upcomingTask) {
-      upcoming.innerHTML = `<p class="text-sm text-slate-400">No blocks scheduled yet.</p>`;
-      return;
-    }
-    const accent = getStatusAccent(upcomingTask.status || "Planned");
-    upcoming.innerHTML = `
-      <div class="rounded-2xl border ${accent.cardBorder} bg-gradient-to-br ${accent.cardBg} p-4">
-        <p class="text-xs font-semibold uppercase tracking-[0.5em] ${accent.label}">Up next</p>
-        <p class="mt-2 text-lg font-semibold text-slate-900">${escapeHtml(upcomingTask.title)}</p>
-        <p class="text-sm text-slate-500">${formatRange(upcomingTask.start, upcomingTask.end)}</p>
-        <p class="mt-2 text-xs text-slate-400">${escapeHtml(upcomingTask.description || "")}</p>
-      </div>
-    `;
   }
 
   function updateDashboard() {
@@ -462,38 +430,29 @@ function enableKanbanDrag() {
     document.getElementById("dashboardCalendar").innerHTML =
       state.calendar
         .slice(0, 5)
-        .map(
-          (event) => `
+        .map((event) => {
+          const eventUrl = event.url || buildCalendarEventUrl(event.id);
+          const title = eventUrl
+            ? `<a class="calendar-link" href="${eventUrl}" target="_blank" rel="noopener">${escapeHtml(event.title)} ↗</a>`
+            : `<strong>${escapeHtml(event.title)}</strong>`;
+          return `
           <li>
-            <div class="flex items-center justify-between text-sm">
-              <strong class="text-slate-800">${escapeHtml(event.title)}</strong>
-              <span class="text-slate-500">${formatRange(event.start, event.end)}</span>
-            </div>
-          </li>`
-        )
-        .join("") || '<li class="text-slate-400">No upcoming events.</li>';
+            ${title}
+            <span>${formatRange(event.start, event.end)}</span>
+          </li>`;
+        })
+        .join("") || "<li>No upcoming events.</li>";
     document.getElementById("dashboardFinance").innerHTML =
       state.finance
         .slice(0, 5)
         .map(
           (entry) => `
           <li>
-            <div class="flex items-center justify-between text-sm">
-              <strong class="text-slate-800">${escapeHtml(entry.category || entry.type || "")}</strong>
-              <span class="text-slate-500">${formatCurrency(entry.amount)}</span>
-            </div>
+            <strong>${escapeHtml(entry.category || entry.type || "")}</strong>
+            <span>${formatCurrency(entry.amount)}</span>
           </li>`
         )
-        .join("") || '<li class="text-slate-400">No recent entries.</li>';
-  }
-
-  function getUpcomingTask() {
-    if (!state.tasks.length) return null;
-    const withDates = state.tasks.filter((task) => task.start);
-    if (!withDates.length) return null;
-    const sorted = [...withDates].sort((a, b) => new Date(a.start) - new Date(b.start));
-    const future = sorted.find((task) => new Date(task.start) >= new Date());
-    return future || sorted[0] || null;
+        .join("") || "<li>No recent entries.</li>";
   }
 
   function calculateFinanceInsights() {
@@ -514,30 +473,58 @@ function enableKanbanDrag() {
 
   function deleteTask(id) {
     if (!id) return;
-    setStatus("taskStatus", "Removing task…");
+    const normalizedId = String(id);
+    const index = state.tasks.findIndex((task) => String(task.id) === normalizedId);
+    let removedTask = null;
+    if (index >= 0) {
+      removedTask = state.tasks.splice(index, 1)[0];
+      renderTasks();
+      renderKanban();
+      updateDashboard();
+    }
+    const finishStatus = startStatusAction("taskStatus", "Removing task…");
     google.script.run
       .withSuccessHandler(() => {
-        setStatus("taskStatus", "Task removed.");
+        finishStatus("Task removed.");
+      })
+      .withFailureHandler((error) => {
+        if (removedTask) {
+          state.tasks.splice(index, 0, removedTask);
+          renderTasks();
+          renderKanban();
+          updateDashboard();
+        }
+        finishStatus(error.message || "Unable to delete task", true);
         refreshTasks();
       })
-      .withFailureHandler((error) =>
-        setStatus("taskStatus", error.message || "Unable to delete task", true)
-      )
       .deleteTask({ id, sheetName: "Tasks" });
   }
 
   function deleteFinanceEntry(id) {
     if (!id) return;
-    setStatus("financeStatus", "Removing entry…");
+    const normalizedId = String(id);
+    const index = state.finance.findIndex((entry) => String(entry.id) === normalizedId);
+    let removedEntry = null;
+    if (index >= 0) {
+      removedEntry = state.finance.splice(index, 1)[0];
+      renderFinance();
+      updateDashboard();
+    }
+    const finishStatus = startStatusAction("financeStatus", "Removing entry…");
     google.script.run
       .withSuccessHandler(() => {
-        setStatus("financeStatus", "Entry deleted.");
+        finishStatus("Entry deleted.");
+      })
+      .withFailureHandler((error) => {
+        if (removedEntry) {
+          state.finance.splice(index, 0, removedEntry);
+          renderFinance();
+          updateDashboard();
+        }
+        finishStatus(error.message || "Unable to delete entry", true);
         refreshFinance();
       })
-      .withFailureHandler((error) =>
-        setStatus("financeStatus", error.message || "Unable to delete entry", true)
-      )
-      .deleteFinanceEntry(id);
+      .deleteFinanceEntry(normalizedId);
   }
 
   function parseJson(raw, fallback = []) {
@@ -578,24 +565,59 @@ function enableKanbanDrag() {
     }).format(Number(value) || 0);
   }
 
-  function getStatusAccent(status = "Planned") {
-    return STATUS_ACCENTS[status] || STATUS_ACCENTS.Planned;
+  function combineDateTime(dateStr, timeStr) {
+    if (!dateStr || !timeStr) return "";
+    const date = new Date(`${dateStr}T${timeStr}`);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toISOString();
+  }
+
+  function buildLocalTaskFromPayload(payload) {
+    const date = payload.date || payload.startDate || formatISODate(new Date());
+    return {
+      id: `${TEMP_TASK_PREFIX}${Date.now()}${Math.random().toString(16).slice(2)}`,
+      title: payload.title || "Untitled task",
+      description: payload.description || "",
+      category: payload.category || "",
+      status: payload.status || "Planned",
+      start: combineDateTime(date, payload.startTime),
+      end: combineDateTime(payload.endDate || date, payload.endTime),
+      calendarEventId: "",
+    };
+  }
+
+  function addLocalTask(task) {
+    state.tasks = [...state.tasks, task].sort(sortTasksByStart);
+    renderTasks();
+    renderKanban();
+    updateDashboard();
+    return task;
+  }
+
+  function removeLocalTaskById(id) {
+    const initialLength = state.tasks.length;
+    state.tasks = state.tasks.filter((task) => String(task.id) !== String(id));
+    if (state.tasks.length !== initialLength) {
+      renderTasks();
+      renderKanban();
+      updateDashboard();
+    }
+  }
+
+  function sortTasksByStart(a, b) {
+    if (!a.start || !b.start) return 0;
+    return new Date(a.start) - new Date(b.start);
   }
 
   function applyTaskStatusLocally(id, newStatus) {
-    const task = state.tasks.find((item) => item.id === id);
+    const normalizedId = String(id);
+    const task = state.tasks.find((item) => String(item.id) === normalizedId);
     if (!task) {
-      return {
-        shouldSync: true,
-        rollback: () => {},
-      };
+      return { shouldSync: true, rollback: () => {} };
     }
     const previousStatus = task.status || "Planned";
     if (previousStatus === newStatus) {
-      return {
-        shouldSync: false,
-        rollback: () => {},
-      };
+      return { shouldSync: false, rollback: () => {} };
     }
     task.status = newStatus;
     renderTasks();
@@ -612,28 +634,26 @@ function enableKanbanDrag() {
     };
   }
 
-  function setTaskLoader(isStarting) {
-    const loader = document.getElementById("taskLoader");
-    if (!loader) return;
-    taskLoaderCount = Math.max(0, taskLoaderCount + (isStarting ? 1 : -1));
-    const active = taskLoaderCount > 0;
-    loader.classList.toggle("hidden", !active);
-    loader.classList.toggle("flex", active);
-    loader.classList.toggle("pointer-events-none", !active);
-    loader.classList.toggle("pointer-events-auto", active);
+  function buildCalendarEventUrl(eventId) {
+    if (!eventId) return "";
+    return `https://calendar.google.com/calendar/u/0/r/eventedit/${encodeURIComponent(eventId)}`;
+  }
+
+  function startStatusAction(targetId, initialMessage) {
+    setStatus(targetId, initialMessage);
+    return (message, isError = false) => setStatus(targetId, message, isError);
   }
 
   function setStatus(id, message, isError = false) {
     const el = document.getElementById(id);
     if (!el) return;
     el.textContent = message;
-    el.classList.toggle("text-rose-500", Boolean(isError) && Boolean(message));
-    el.classList.toggle("text-slate-400", !isError);
+    el.classList.toggle("error", Boolean(isError));
     if (!message) return;
     setTimeout(() => {
       if (el.textContent === message) {
         el.textContent = "";
-        el.classList.remove("text-rose-500");
+        el.classList.remove("error");
       }
     }, 3000);
   }
