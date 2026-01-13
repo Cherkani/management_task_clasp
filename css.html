@@ -4,6 +4,162 @@
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+body {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+body[data-theme="dark"] {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+body[data-theme="dark"] .bg-white {
+  background-color: #111827;
+}
+
+body[data-theme="dark"] .bg-slate-50 {
+  background-color: #0b1220;
+}
+
+body[data-theme="dark"] .bg-slate-100 {
+  background-color: #0f172a;
+}
+
+body[data-theme="dark"] .text-slate-900 {
+  color: #f8fafc;
+}
+
+body[data-theme="dark"] .text-slate-600,
+body[data-theme="dark"] .text-slate-500,
+body[data-theme="dark"] .text-slate-400 {
+  color: #94a3b8;
+}
+
+body[data-theme="dark"] .ring-slate-100 {
+  --tw-ring-color: #1f2937;
+}
+
+body[data-theme="dark"] .border-slate-100,
+body[data-theme="dark"] .border-slate-200,
+body[data-theme="dark"] .border-slate-300 {
+  border-color: #1f2937;
+}
+
+body[data-theme="dark"] .shadow-lg,
+body[data-theme="dark"] .shadow-sm,
+body[data-theme="dark"] .shadow {
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.4);
+}
+
+body[data-theme="dark"] input,
+body[data-theme="dark"] select,
+body[data-theme="dark"] textarea {
+  background-color: #0b1220;
+  color: #e2e8f0;
+  border-color: #1f2937;
+}
+
+.rounded-2xl.bg-white {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 1.35rem;
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.08);
+}
+
+body[data-theme="dark"] .rounded-2xl.bg-white {
+  border-color: rgba(148, 163, 184, 0.12);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.4);
+}
+
+.sidebar {
+  border-right: 1px solid rgba(148, 163, 184, 0.15);
+  background: linear-gradient(160deg, #0f172a 0%, #111827 100%);
+  transition: width 0.25s ease, padding 0.25s ease;
+}
+
+.sidebar-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sidebar-icon {
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  text-transform: uppercase;
+}
+
+.sidebar-btn {
+  width: 100%;
+  border-radius: 0.9rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.theme-btn.active {
+  background: #4f46e5;
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(79, 70, 229, 0.35);
+}
+
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.sidebar-toggle-icon {
+  font-size: 1rem;
+}
+
+.sidebar-cta {
+  width: 100%;
+  gap: 0.5rem;
+}
+
+.sidebar.collapsed {
+  width: 5.25rem;
+  padding: 1.25rem;
+}
+
+.sidebar.collapsed .sidebar-label {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-link {
+  justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-icon {
+  width: 2.4rem;
+  height: 2.4rem;
+}
+
 nav a.active {
   background-color: #4c1d95;
   color: #fff;
@@ -12,6 +168,17 @@ nav a.active {
 
 .kanban-column {
   min-height: 260px;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+body[data-theme="dark"] .kanban-column {
+  background: linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
+  border-color: rgba(148, 163, 184, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
 }
 
 .panel {

@@ -45,6 +45,7 @@
   document.addEventListener("DOMContentLoaded", () => {
     populateWeekSelector();
     setupNav();
+    setupSidebarControls();
     setupForms();
     initKanbanDroppers();
     setFormDefaults();
@@ -59,6 +60,47 @@
         setPanel(link.dataset.panel);
       });
     });
+  }
+
+  function setupSidebarControls() {
+    const sidebar = document.querySelector(".sidebar");
+    if (!sidebar) return;
+    const savedTheme = localStorage.getItem("ui-theme") || "light";
+    setTheme(savedTheme);
+    document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setTheme(button.dataset.themeToggle);
+      });
+    });
+    const toggle = document.getElementById("sidebarToggle");
+    const storedCollapsed = localStorage.getItem("sidebar-collapsed") === "true";
+    setSidebarCollapsed(storedCollapsed);
+    toggle?.addEventListener("click", () => {
+      setSidebarCollapsed(!sidebar.classList.contains("collapsed"));
+    });
+  }
+
+  function setTheme(theme) {
+    document.body.dataset.theme = theme;
+    localStorage.setItem("ui-theme", theme);
+    document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.themeToggle === theme);
+      button.setAttribute("aria-pressed", button.dataset.themeToggle === theme);
+    });
+  }
+
+  function setSidebarCollapsed(collapsed) {
+    const sidebar = document.querySelector(".sidebar");
+    if (!sidebar) return;
+    sidebar.classList.toggle("collapsed", collapsed);
+    localStorage.setItem("sidebar-collapsed", String(collapsed));
+    const toggle = document.getElementById("sidebarToggle");
+    if (toggle) {
+      const icon = toggle.querySelector(".sidebar-toggle-icon");
+      const label = toggle.querySelector(".sidebar-label");
+      if (icon) icon.textContent = collapsed ? "⇥" : "⇤";
+      if (label) label.textContent = collapsed ? "Expand" : "Collapse";
+    }
   }
 
   function setPanel(panel) {

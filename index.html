@@ -10,32 +10,46 @@
 
 <body class="bg-slate-100 text-slate-900">
   <div class="flex min-h-screen">
-    <nav class="w-64 bg-slate-900 text-slate-200 flex flex-col gap-6 p-6">
-      <div>
+    <nav class="sidebar w-64 bg-slate-900 text-slate-200 flex flex-col gap-6 p-6">
+      <div class="sidebar-brand">
         <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Planner</p>
-        <p class="text-lg font-semibold text-white">Workspace Console</p>
+        <p class="text-lg font-semibold text-white sidebar-label">Workspace Console</p>
       </div>
       <ul class="space-y-2 text-sm font-medium">
         <li>
-          <a href="#" class="active block rounded-xl px-4 py-2 transition hover:bg-white/10" data-panel="dashboard">
-            Overview
+          <a href="#" class="active sidebar-link block rounded-xl px-4 py-2 transition hover:bg-white/10" data-panel="dashboard">
+            <span class="sidebar-icon">O</span>
+            <span class="sidebar-label">Overview</span>
           </a>
         </li>
         <li>
-          <a href="#" class="block rounded-xl px-4 py-2 transition hover:bg-white/10" data-panel="tasks">
-            Tasks
+          <a href="#" class="sidebar-link block rounded-xl px-4 py-2 transition hover:bg-white/10" data-panel="tasks">
+            <span class="sidebar-icon">T</span>
+            <span class="sidebar-label">Tasks</span>
           </a>
         </li>
         <li>
-          <a href="#" class="block rounded-xl px-4 py-2 transition hover:bg-white/10" data-panel="finance">
-            Finance
+          <a href="#" class="sidebar-link block rounded-xl px-4 py-2 transition hover:bg-white/10" data-panel="finance">
+            <span class="sidebar-icon">F</span>
+            <span class="sidebar-label">Finance</span>
           </a>
         </li>
       </ul>
+      <div class="space-y-3">
+        <p class="text-[0.65rem] uppercase tracking-[0.35em] text-slate-500 sidebar-label">Appearance</p>
+        <div class="grid grid-cols-2 gap-2 sidebar-label">
+          <button type="button" class="sidebar-btn theme-btn" data-theme-toggle="light">Light</button>
+          <button type="button" class="sidebar-btn theme-btn" data-theme-toggle="dark">Dark</button>
+        </div>
+        <button type="button" class="sidebar-btn sidebar-toggle" id="sidebarToggle">
+          <span class="sidebar-toggle-icon">⇤</span>
+          <span class="sidebar-label">Collapse</span>
+        </button>
+      </div>
       <div class="mt-auto">
         <a href="https://calendar.google.com/calendar/u/0/r/day" target="_blank" rel="noopener"
-          class="inline-flex items-center justify-center rounded-xl border border-white/20 px-4 py-2 text-sm text-white hover:bg-white/10">
-          Google Calendar
+          class="sidebar-cta inline-flex items-center justify-center rounded-xl border border-white/20 px-4 py-2 text-sm text-white hover:bg-white/10">
+          <span class="sidebar-label">Google Calendar</span>
         </a>
       </div>
     </nav>
