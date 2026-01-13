@@ -37,6 +37,10 @@
     weekStart: initialWeekStart,
     weekEnd: initialWeekEnd,
     selectedDate: formatISODate(initialWeekStart),
+    kanbanFilter: "week",
+    taskSearch: "",
+    taskPage: 1,
+    taskPageSize: 10,
     tasks: [],
     calendar: [],
     finance: [],
@@ -46,6 +50,8 @@
     populateWeekSelector();
     setupNav();
     setupSidebarControls();
+    setupKanbanFilter();
+    setupTaskSearch();
     setupForms();
     initKanbanDroppers();
     setFormDefaults();
@@ -197,6 +203,26 @@
     });
   }
 
+  function setupKanbanFilter() {
+    const filter = document.getElementById("kanbanFilter");
+    if (!filter) return;
+    filter.value = state.kanbanFilter;
+    filter.addEventListener("change", (event) => {
+      state.kanbanFilter = event.target.value || "week";
+      renderKanban();
+    });
+  }
+
+  function setupTaskSearch() {
+    const input = document.getElementById("taskSearch");
+    if (!input) return;
+    input.addEventListener("input", (event) => {
+      state.taskSearch = event.target.value.trim().toLowerCase();
+      state.taskPage = 1;
+      renderTasks();
+    });
+  }
+
   function populateWeekSelector() {
     const select = document.getElementById("weekSelector");
     if (!select) return;
@@ -238,6 +264,7 @@
     const selector = document.getElementById("weekSelector");
     if (selector) selector.value = formatISODate(state.weekStart);
     refreshTasks();
+    refreshFinance();
   }
 
   function updateSelectedDate(dateString) {
@@ -245,6 +272,9 @@
     const dateFilter = document.getElementById("taskDateFilter");
     if (dateFilter) dateFilter.value = dateString;
     setFormDefaults();
+    renderKanban();
+    state.taskPage = 1;
+    renderTasks();
   }
 
   function setFormDefaults() {
@@ -334,7 +364,8 @@
   function refreshFinance() {
     google.script.run
       .withSuccessHandler((raw) => {
-        state.finance = parseJson(raw);
+        const entries = parseJson(raw);
+        state.finance = filterEntriesByWeek(entries);
         renderFinance();
         updateDashboard();
       })
@@ -344,14 +375,38 @@
       .getFinanceEntries();
   }
 
+  function filterEntriesByWeek(entries) {
+    const startKey = formatISODate(state.weekStart);
+    const endKey = formatISODate(state.weekEnd);
+    return entries.filter((entry) => {
+      const entryDate = dateKey(entry.date);
+      if (!entryDate) return false;
+      return entryDate >= startKey && entryDate <= endKey;
+    });
+  }
+
+  function dateKey(value) {
+    if (!value) return "";
+    const stringValue = String(value);
+    if (/^\d{4}-\d{2}-\d{2}/.test(stringValue)) {
+      return stringValue.slice(0, 10);
+    }
+    const parsed = new Date(stringValue);
+    if (isNaN(parsed.getTime())) return "";
+    return formatISODate(parsed);
+  }
+
   function renderTasks() {
     const tbody = document.getElementById("taskTableBody");
     if (!tbody) return;
-    if (!state.tasks.length) {
-      tbody.innerHTML = `<tr><td colspan="4">No tasks for this week.</td></tr>`;
+    const filteredTasks = filterTaskTable(state.tasks);
+    const pagination = paginateTasks(filteredTasks);
+    if (!pagination.items.length) {
+      tbody.innerHTML = `<tr><td colspan="4">No tasks for this view.</td></tr>`;
+      renderTaskPagination(0);
       return;
     }
-    tbody.innerHTML = state.tasks
+    tbody.innerHTML = pagination.items
       .map((task) => {
         const calendarLink = task.calendarEventId
           ? `<a class="calendar-link" href="${buildCalendarEventUrl(task.calendarEventId)}" target="_blank" rel="noopener">Calendar ↗</a>`
@@ -371,6 +426,60 @@
         </tr>`;
       })
       .join("");
+    renderTaskPagination(pagination.totalPages);
+  }
+
+  function filterTaskTable(tasks) {
+    const selectedKey = dateKey(state.selectedDate);
+    const query = state.taskSearch;
+    return tasks.filter((task) => {
+      const startKey = dateKey(task.start || task.date || task.startDate);
+      if (selectedKey && startKey !== selectedKey) return false;
+      if (!query) return true;
+      const haystack = [
+        task.title,
+        task.description,
+        task.category,
+        task.status,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }
+
+  function paginateTasks(tasks) {
+    const totalPages = Math.max(
+      1,
+      Math.ceil(tasks.length / state.taskPageSize)
+    );
+    state.taskPage = Math.min(state.taskPage, totalPages);
+    const start = (state.taskPage - 1) * state.taskPageSize;
+    const items = tasks.slice(start, start + state.taskPageSize);
+    return { items, totalPages };
+  }
+
+  function renderTaskPagination(totalPages) {
+    const container = document.getElementById("taskPagination");
+    if (!container) return;
+    if (totalPages <= 1) {
+      container.innerHTML = "";
+      return;
+    }
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+    container.innerHTML = pages
+      .map((page) => {
+        const isActive = page === state.taskPage;
+        return `<button type="button" class="pagination-btn${isActive ? " active" : ""}" data-page="${page}">${page}</button>`;
+      })
+      .join("");
+    container.querySelectorAll("button[data-page]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.taskPage = Number(button.dataset.page || 1);
+        renderTasks();
+      });
+    });
   }
 
   function renderKanban() {
@@ -379,7 +488,8 @@
       Running: [],
       Done: [],
     };
-    state.tasks.forEach((task) => {
+    const visibleTasks = filterKanbanTasks(state.tasks);
+    visibleTasks.forEach((task) => {
       const status = task.status || "Planned";
       (columns[status] || columns.Planned).push(task);
     });
@@ -395,19 +505,36 @@
           const calendarLink = task.calendarEventId
             ? `<a class="calendar-link" href="${buildCalendarEventUrl(task.calendarEventId)}" target="_blank" rel="noopener">Calendar ↗</a>`
             : "";
+          const category = task.category ? `<span>${escapeHtml(task.category)}</span>` : "";
           return `
         <div class="kanban-card" draggable="true" data-id="${task.id}" data-status="${status}">
           <div class="flex items-start justify-between gap-2">
             <strong>${escapeHtml(task.title)}</strong>
             ${calendarLink}
           </div>
-          <div>${formatRange(task.start, task.end)}</div>
+          <div class="kanban-meta">
+            <span>${formatRange(task.start, task.end)}</span>
+            ${category}
+          </div>
           <p class="agenda-meta">${escapeHtml(task.description || "")}</p>
+          <div class="kanban-actions">
+            <span class="kanban-pill">${escapeHtml(status)}</span>
+            <button type="button" class="ghost" onclick="deleteTask('${task.id}')">Delete</button>
+          </div>
         </div>`;
         })
         .join("");
     });
     enableKanbanDrag();
+  }
+
+  function filterKanbanTasks(tasks) {
+    if (state.kanbanFilter !== "day") return tasks;
+    const selectedKey = dateKey(state.selectedDate);
+    return tasks.filter((task) => {
+      const startKey = dateKey(task.start || task.date || task.startDate);
+      return startKey && startKey === selectedKey;
+    });
   }
 
   function renderCalendar() {

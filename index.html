@@ -11,9 +11,26 @@
 <body class="bg-slate-100 text-slate-900">
   <div class="flex min-h-screen">
     <nav class="sidebar w-64 bg-slate-900 text-slate-200 flex flex-col gap-6 p-6">
+      <div class="sidebar-top">
+        <button type="button" class="sidebar-btn sidebar-toggle" id="sidebarToggle">
+          <span class="sidebar-toggle-icon">⇤</span>
+          <span class="sidebar-label">Collapse</span>
+        </button>
+      </div>
       <div class="sidebar-brand">
-        <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Planner</p>
-        <p class="text-lg font-semibold text-white sidebar-label">Workspace Console</p>
+        <p class="text-xs uppercase tracking-[0.3em] text-slate-500">
+          <span class="sidebar-label">Planner Suite</span>
+          <span class="sidebar-logo-short" aria-hidden="true">P</span>
+        </p>
+        <p class="text-lg font-semibold text-white sidebar-label">Workspace Command Center</p>
+        <div class="theme-toggle-group">
+          <button type="button" class="sidebar-btn theme-btn" data-theme-toggle="light" aria-label="Light mode" title="Light mode">
+            <span class="theme-icon">☀︎</span>
+          </button>
+          <button type="button" class="sidebar-btn theme-btn" data-theme-toggle="dark" aria-label="Dark mode" title="Dark mode">
+            <span class="theme-icon">☾</span>
+          </button>
+        </div>
       </div>
       <ul class="space-y-2 text-sm font-medium">
         <li>
@@ -35,16 +52,11 @@
           </a>
         </li>
       </ul>
-      <div class="space-y-3">
-        <p class="text-[0.65rem] uppercase tracking-[0.35em] text-slate-500 sidebar-label">Appearance</p>
-        <div class="grid grid-cols-2 gap-2 sidebar-label">
-          <button type="button" class="sidebar-btn theme-btn" data-theme-toggle="light">Light</button>
-          <button type="button" class="sidebar-btn theme-btn" data-theme-toggle="dark">Dark</button>
-        </div>
-        <button type="button" class="sidebar-btn sidebar-toggle" id="sidebarToggle">
-          <span class="sidebar-toggle-icon">⇤</span>
-          <span class="sidebar-label">Collapse</span>
-        </button>
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-status">
+        <p class="text-[0.65rem] uppercase tracking-[0.35em] text-slate-500 sidebar-label">Status</p>
+        <div id="taskStatus" class="text-xs text-slate-400 sidebar-label"></div>
+        <div id="financeStatus" class="text-xs text-slate-400 sidebar-label"></div>
       </div>
       <div class="mt-auto">
         <a href="https://calendar.google.com/calendar/u/0/r/day" target="_blank" rel="noopener"
@@ -55,17 +67,17 @@
     </nav>
 
     <div class="flex-1 p-6 lg:p-10">
-      <header class="flex flex-col gap-6 rounded-3xl bg-white/90 p-6 shadow-lg ring-1 ring-slate-100 lg:flex-row lg:items-center lg:justify-between">
+      <header class="page-header flex flex-col gap-6 rounded-3xl bg-white/90 p-6 shadow-lg ring-1 ring-slate-100 lg:flex-row lg:items-center lg:justify-between">
         <div class="space-y-2">
-          <p class="text-xs uppercase tracking-[0.5em] text-indigo-500">Planner</p>
+          <p class="text-xs uppercase tracking-[0.5em] text-indigo-500">Planner Suite</p>
           <h1 class="text-3xl font-semibold text-slate-900">Workspace Control Center</h1>
           <p class="text-sm text-slate-500">
-            Capture focused blocks, sync with Calendar, and keep finances on the same glass dashboard.
+            Plan priorities, sync schedules, and track cashflow from one command hub.
           </p>
         </div>
         <div class="flex flex-col gap-4 sm:flex-row">
           <label class="flex flex-col text-sm font-medium text-slate-600">
-            Week
+            Week range
             <select id="weekSelector"
               class="mt-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-inner focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200">
             </select>
@@ -74,6 +86,14 @@
             Focus day
             <input type="date" id="taskDateFilter"
               class="mt-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-inner focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+          </label>
+          <label class="flex flex-col text-sm font-medium text-slate-600">
+            Kanban view
+            <select id="kanbanFilter"
+              class="mt-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-inner focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200">
+              <option value="week">All week</option>
+              <option value="day">Selected day</option>
+            </select>
           </label>
         </div>
       </header>
@@ -124,7 +144,6 @@
               <p class="text-xs uppercase tracking-[0.5em] text-indigo-500">Tasks</p>
               <h2 class="text-2xl font-semibold">Create a focused block</h2>
             </div>
-            <div id="taskStatus" class="text-sm text-slate-500"></div>
           </div>
           <form id="taskForm" class="space-y-4 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
             <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -183,14 +202,36 @@
           </form>
 
           <div class="space-y-6 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+            <div class="grid gap-4 lg:grid-cols-3">
+              <div class="kanban-column rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4" data-status="Planned">
+                <h4 class="text-xs uppercase tracking-[0.5em] text-slate-400">Planned</h4>
+                <div class="kanban-list mt-4 flex flex-col gap-3" id="kanbanPlanned"></div>
+              </div>
+              <div class="kanban-column rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4" data-status="Running">
+                <h4 class="text-xs uppercase tracking-[0.5em] text-slate-400">Running</h4>
+                <div class="kanban-list mt-4 flex flex-col gap-3" id="kanbanRunning"></div>
+              </div>
+              <div class="kanban-column rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4" data-status="Done">
+                <h4 class="text-xs uppercase tracking-[0.5em] text-slate-400">Done</h4>
+                <div class="kanban-list mt-4 flex flex-col gap-3" id="kanbanDone"></div>
+              </div>
+            </div>
             <div class="flex flex-col gap-1">
               <div class="flex items-center justify-between">
                 <h3 class="text-lg font-semibold">Scheduled tasks</h3>
                 <p class="text-xs uppercase tracking-[0.5em] text-slate-400">Tasks sheet</p>
               </div>
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <label class="flex flex-col text-sm font-medium text-slate-600">
+                  Search
+                  <input type="search" id="taskSearch" placeholder="Search tasks"
+                    class="mt-1 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-inner focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+                </label>
+                <div id="taskPagination" class="flex items-center gap-2 text-sm text-slate-500"></div>
+              </div>
             </div>
             <div class="overflow-hidden rounded-2xl border border-slate-100">
-              <table class="min-w-full divide-y divide-slate-100 text-sm">
+              <table class="min-w-full divide-y divide-slate-100 text-sm data-table">
                 <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
                     <th class="px-4 py-3 text-left">Title</th>
@@ -205,20 +246,6 @@
                   </tr>
                 </tbody>
               </table>
-            </div>
-            <div class="grid gap-4 lg:grid-cols-3">
-              <div class="kanban-column rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4" data-status="Planned">
-                <h4 class="text-xs uppercase tracking-[0.5em] text-slate-400">Planned</h4>
-                <div class="kanban-list mt-4 flex flex-col gap-3" id="kanbanPlanned"></div>
-              </div>
-              <div class="kanban-column rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4" data-status="Running">
-                <h4 class="text-xs uppercase tracking-[0.5em] text-slate-400">Running</h4>
-                <div class="kanban-list mt-4 flex flex-col gap-3" id="kanbanRunning"></div>
-              </div>
-              <div class="kanban-column rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4" data-status="Done">
-                <h4 class="text-xs uppercase tracking-[0.5em] text-slate-400">Done</h4>
-                <div class="kanban-list mt-4 flex flex-col gap-3" id="kanbanDone"></div>
-              </div>
             </div>
           </div>
 
@@ -239,7 +266,6 @@
               <p class="text-xs uppercase tracking-[0.5em] text-indigo-500">Finance</p>
               <h2 class="text-2xl font-semibold">Track cash in/out</h2>
             </div>
-            <div id="financeStatus" class="text-sm text-slate-500"></div>
           </div>
           <form id="financeForm" class="space-y-4 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
             <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

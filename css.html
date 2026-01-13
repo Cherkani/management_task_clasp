@@ -59,6 +59,18 @@ body[data-theme="dark"] textarea {
   border-color: #1f2937;
 }
 
+.page-header {
+  position: sticky;
+  top: 1.5rem;
+  z-index: 20;
+  backdrop-filter: blur(12px);
+}
+
+body[data-theme="dark"] .page-header {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: rgba(148, 163, 184, 0.12);
+}
+
 .rounded-2xl.bg-white {
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 1.35rem;
@@ -74,6 +86,29 @@ body[data-theme="dark"] .rounded-2xl.bg-white {
   border-right: 1px solid rgba(148, 163, 184, 0.15);
   background: linear-gradient(160deg, #0f172a 0%, #111827 100%);
   transition: width 0.25s ease, padding 0.25s ease;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  align-self: flex-start;
+}
+
+.sidebar-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.sidebar-status {
+  display: grid;
+  gap: 0.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.sidebar-spacer {
+  flex: 1 1 auto;
 }
 
 .sidebar-brand {
@@ -82,10 +117,29 @@ body[data-theme="dark"] .rounded-2xl.bg-white {
   gap: 0.35rem;
 }
 
+.sidebar-logo-short {
+  display: none;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #cbd5f5;
+}
+
 .sidebar-link {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+.sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateX(2px);
+}
+
+.theme-toggle-group {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
 }
 
 .sidebar-icon {
@@ -115,6 +169,21 @@ body[data-theme="dark"] .rounded-2xl.bg-white {
   transition: background 0.2s ease, transform 0.2s ease;
 }
 
+.theme-btn {
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.9rem;
+}
+
+.theme-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .sidebar-btn:hover {
   background: rgba(255, 255, 255, 0.16);
   transform: translateY(-1px);
@@ -131,6 +200,7 @@ body[data-theme="dark"] .rounded-2xl.bg-white {
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
+  align-self: flex-start;
 }
 
 .sidebar-toggle-icon {
@@ -151,7 +221,26 @@ body[data-theme="dark"] .rounded-2xl.bg-white {
   display: none;
 }
 
+.sidebar.collapsed .sidebar-logo-short {
+  display: inline-block;
+}
+
 .sidebar.collapsed .sidebar-link {
+  justify-content: center;
+}
+
+.sidebar.collapsed .theme-toggle-group {
+  justify-content: center;
+}
+
+.sidebar.collapsed .theme-btn {
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 999px;
+}
+
+.sidebar.collapsed .sidebar-top {
+  align-items: center;
   justify-content: center;
 }
 
@@ -181,6 +270,131 @@ body[data-theme="dark"] .kanban-column {
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
 }
 
+.kanban-card {
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+  display: grid;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #0f172a;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kanban-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.12);
+}
+
+.kanban-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.kanban-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.kanban-pill {
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(99, 102, 241, 0.12);
+  color: #4338ca;
+  font-weight: 600;
+}
+
+.kanban-card[data-status="Running"] .kanban-pill {
+  background: rgba(249, 115, 22, 0.12);
+  color: #c2410c;
+}
+
+.kanban-card[data-status="Done"] .kanban-pill {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+body[data-theme="dark"] .kanban-meta {
+  color: #94a3b8;
+}
+
+body[data-theme="dark"] .kanban-pill {
+  background: rgba(99, 102, 241, 0.2);
+  color: #c7d2fe;
+}
+
+body[data-theme="dark"] .kanban-card[data-status="Running"] .kanban-pill {
+  background: rgba(249, 115, 22, 0.2);
+  color: #fdba74;
+}
+
+body[data-theme="dark"] .kanban-card[data-status="Done"] .kanban-pill {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+}
+
+.kanban-card[data-status="Planned"] {
+  border-left: 4px solid #6366f1;
+}
+
+.kanban-card[data-status="Running"] {
+  border-left: 4px solid #f97316;
+}
+
+.kanban-card[data-status="Done"] {
+  border-left: 4px solid #10b981;
+}
+
+.kanban-column[data-status="Planned"] h4 {
+  color: #6366f1;
+}
+
+.kanban-column[data-status="Running"] h4 {
+  color: #f97316;
+}
+
+.kanban-column[data-status="Done"] h4 {
+  color: #10b981;
+}
+
+.kanban-empty {
+  border-radius: 0.9rem;
+  border: 1px dashed rgba(148, 163, 184, 0.4);
+  padding: 1.25rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+body[data-theme="dark"] .kanban-card {
+  background: #0b1220;
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #e2e8f0;
+  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.4);
+}
+
+body[data-theme="dark"] .kanban-card:hover {
+  box-shadow: 0 22px 36px rgba(15, 23, 42, 0.5);
+}
+
+body[data-theme="dark"] .kanban-empty {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(148, 163, 184, 0.25);
+  color: #94a3b8;
+}
+
 .panel {
   display: none;
 }
@@ -207,5 +421,51 @@ body[data-theme="dark"] .kanban-column {
 
 .calendar-link:hover {
   opacity: 0.85;
+}
+
+.data-table tbody tr {
+  transition: background 0.2s ease;
+}
+
+.data-table tbody tr:nth-child(even) {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.data-table tbody tr:hover {
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.pagination-btn {
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: transparent;
+  color: #475569;
+  transition: background 0.2s ease, border 0.2s ease;
+}
+
+.pagination-btn:hover {
+  border-color: rgba(99, 102, 241, 0.6);
+  color: #4f46e5;
+}
+
+.pagination-btn.active {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.6);
+  color: #4f46e5;
+}
+
+body[data-theme="dark"] .pagination-btn {
+  color: #cbd5f5;
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+body[data-theme="dark"] .data-table tbody tr:nth-child(even) {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+body[data-theme="dark"] .data-table tbody tr:hover {
+  background: rgba(99, 102, 241, 0.2);
 }
 </style>
