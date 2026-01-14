@@ -38,6 +38,7 @@
     weekEnd: initialWeekEnd,
     selectedDate: formatISODate(initialWeekStart),
     kanbanFilter: "week",
+    kanbanSelectedDate: formatISODate(new Date()),
     taskSearch: "",
     taskPage: 1,
     taskPageSize: 10,
@@ -47,11 +48,9 @@
   };
 
   document.addEventListener("DOMContentLoaded", () => {
-    populateWeekSelector();
     setupNav();
     setupSidebarControls();
     setupKanbanFilter();
-    setupTaskSearch();
     setupForms();
     initKanbanDroppers();
     setFormDefaults();
@@ -120,14 +119,6 @@
   }
 
   function setupForms() {
-    const dateFilter = document.getElementById("taskDateFilter");
-    if (dateFilter) {
-      dateFilter.value = state.selectedDate;
-      dateFilter.addEventListener("change", (event) => {
-        const value = event.target.value || state.selectedDate;
-        updateSelectedDate(value);
-      });
-    }
 
     const taskForm = document.getElementById("taskForm");
     taskForm?.addEventListener("submit", (event) => {
@@ -205,28 +196,73 @@
 
   function setupKanbanFilter() {
     const filter = document.getElementById("kanbanFilter");
+    const dateLabel = document.getElementById("kanbanDateLabel");
+    const dateInput = document.getElementById("kanbanDateFilter");
+    
     if (!filter) return;
     filter.value = state.kanbanFilter;
+    
+    // Set initial date value to today
+    if (dateInput) {
+      dateInput.value = state.kanbanSelectedDate || formatISODate(new Date());
+      state.kanbanSelectedDate = dateInput.value;
+    }
+    
+    // Show/hide date input based on filter selection
+    const updateDateVisibility = () => {
+      if (dateLabel) {
+        if (state.kanbanFilter === "day") {
+          dateLabel.style.display = "flex";
+        } else {
+          dateLabel.style.display = "none";
+        }
+      }
+    };
+    
     filter.addEventListener("change", (event) => {
       state.kanbanFilter = event.target.value || "week";
+      updateDateVisibility();
       renderKanban();
     });
+    
+    // Handle date changes
+    if (dateInput) {
+      dateInput.addEventListener("change", (event) => {
+        const value = event.target.value;
+        if (value) {
+          state.kanbanSelectedDate = value;
+          // Check if the selected date is outside the current week range
+          const selectedDate = new Date(value);
+          const weekStart = new Date(state.weekStart);
+          const weekEnd = new Date(state.weekEnd);
+          if (selectedDate < weekStart || selectedDate > weekEnd) {
+            // Update week range to include the selected date
+            state.weekStart = startOfWeek(selectedDate);
+            state.weekEnd = endOfWeek(state.weekStart);
+            // Reload tasks for the new week range
+            refreshTasks();
+          } else {
+            // Just update the kanban view
+            renderKanban();
+          }
+        }
+      });
+    }
+    
+    // Initial visibility
+    updateDateVisibility();
   }
 
-  function setupTaskSearch() {
-    const input = document.getElementById("taskSearch");
-    if (!input) return;
-    input.addEventListener("input", (event) => {
-      state.taskSearch = event.target.value.trim().toLowerCase();
-      state.taskPage = 1;
-      renderTasks();
-    });
-  }
 
   function populateWeekSelector() {
     const select = document.getElementById("weekSelector");
     if (!select) return;
-    const options = [-1, 0, 1].map((offset) => {
+    
+    // Get the current week start
+    const currentWeekStart = formatISODate(state.weekStart);
+    
+    // Build options for -1, 0, +1 weeks from today
+    const baseOptions = [-1, 0, 1].map((offset) => {
       const base = addDays(new Date(), offset * 7);
       const start = startOfWeek(base);
       const end = endOfWeek(start);
@@ -235,12 +271,35 @@
         label: `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`,
       };
     });
-    select.innerHTML = options
+    
+    // Check if current week is already in the options
+    const hasCurrentWeek = baseOptions.some(opt => opt.value === currentWeekStart);
+    
+    // If current week is not in the default options, add it
+    if (!hasCurrentWeek) {
+      const currentStart = state.weekStart;
+      const currentEnd = state.weekEnd;
+      baseOptions.push({
+        value: formatISODate(currentStart),
+        label: `${currentStart.toLocaleDateString()} - ${currentEnd.toLocaleDateString()}`,
+      });
+      // Sort by date
+      baseOptions.sort((a, b) => a.value.localeCompare(b.value));
+    }
+    
+    const currentValue = select.value;
+    select.innerHTML = baseOptions
       .map(
         (opt) => `<option value="${opt.value}">${offsetLabel(opt.value, opt.label)}</option>`
       )
       .join("");
-    select.value = formatISODate(state.weekStart);
+    // Restore or set the value
+    select.value = currentWeekStart;
+  }
+  
+  function setupWeekSelector() {
+    const select = document.getElementById("weekSelector");
+    if (!select) return;
     select.addEventListener("change", (event) => {
       const start = startOfWeek(new Date(event.target.value));
       setWeekRange(start);
@@ -260,21 +319,204 @@
   function setWeekRange(startDate) {
     state.weekStart = startOfWeek(startDate);
     state.weekEnd = endOfWeek(state.weekStart);
-    updateSelectedDate(formatISODate(state.weekStart));
     const selector = document.getElementById("weekSelector");
     if (selector) selector.value = formatISODate(state.weekStart);
+    const currentSelected = new Date(state.selectedDate);
+    const weekStartDate = new Date(state.weekStart);
+    const weekEndDate = new Date(state.weekEnd);
+    if (currentSelected < weekStartDate || currentSelected > weekEndDate) {
+      updateSelectedDate(formatISODate(state.weekStart));
+    } else {
+      updateDateDisplay();
+      updateQuickSelectButtons();
+    }
     refreshTasks();
     refreshFinance();
   }
 
   function updateSelectedDate(dateString) {
-    state.selectedDate = dateString;
+    if (!dateString) return;
+    // Normalize the date string to YYYY-MM-DD format
+    const normalized = dateKey(dateString) || formatISODate(new Date(dateString));
+    if (!normalized) return;
+    
+    const selectedDate = new Date(normalized);
+    const weekStartDate = new Date(state.weekStart);
+    const weekEndDate = new Date(state.weekEnd);
+    
+    // Check if selected date is outside the current week range
+    const isOutsideWeek = selectedDate < weekStartDate || selectedDate > weekEndDate;
+    
+    state.selectedDate = normalized;
     const dateFilter = document.getElementById("taskDateFilter");
-    if (dateFilter) dateFilter.value = dateString;
+    if (dateFilter && dateFilter.value !== normalized) {
+      dateFilter.value = normalized;
+    }
+    
+    // If the selected date is outside the current week, adjust the week range
+    if (isOutsideWeek) {
+      const newWeekStart = startOfWeek(selectedDate);
+      state.weekStart = newWeekStart;
+      state.weekEnd = endOfWeek(newWeekStart);
+      const selector = document.getElementById("weekSelector");
+      if (selector) {
+        // Update week selector to show the new week
+        populateWeekSelector();
+        selector.value = formatISODate(state.weekStart);
+      }
+      // Reload tasks for the new week range
+      refreshTasks();
+    }
+    
+    updateDateDisplay();
+    updateQuickSelectButtons();
     setFormDefaults();
     renderKanban();
     state.taskPage = 1;
     renderTasks();
+  }
+
+  function setupDateNavigation() {
+    const prevBtn = document.getElementById("datePrevBtn");
+    const nextBtn = document.getElementById("dateNextBtn");
+    if (prevBtn) {
+      prevBtn.addEventListener("click", () => {
+        const current = new Date(state.selectedDate);
+        const prev = addDays(current, -1);
+        updateSelectedDate(formatISODate(prev));
+      });
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener("click", () => {
+        const current = new Date(state.selectedDate);
+        const next = addDays(current, 1);
+        updateSelectedDate(formatISODate(next));
+      });
+    }
+  }
+
+  function setupDateQuickSelect() {
+    document.querySelectorAll(".date-quick-btn[data-date-action]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const action = btn.dataset.dateAction;
+        let targetDate = null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        switch (action) {
+          case "today":
+            targetDate = today;
+            break;
+          case "tomorrow":
+            targetDate = addDays(today, 1);
+            break;
+          case "yesterday":
+            targetDate = addDays(today, -1);
+            break;
+          case "week-start":
+            targetDate = state.weekStart;
+            break;
+          case "week-end":
+            targetDate = state.weekEnd;
+            break;
+        }
+        if (targetDate) {
+          updateSelectedDate(formatISODate(targetDate));
+        }
+      });
+    });
+    updateQuickSelectButtons();
+  }
+
+  function updateQuickSelectButtons() {
+    const today = formatISODate(new Date());
+    const tomorrow = formatISODate(addDays(new Date(), 1));
+    const yesterday = formatISODate(addDays(new Date(), -1));
+    const weekStart = formatISODate(state.weekStart);
+    const weekEnd = formatISODate(state.weekEnd);
+    const selected = state.selectedDate;
+
+    document.querySelectorAll(".date-quick-btn[data-date-action]").forEach((btn) => {
+      const action = btn.dataset.dateAction;
+      let isActive = false;
+      switch (action) {
+        case "today":
+          isActive = selected === today;
+          break;
+        case "tomorrow":
+          isActive = selected === tomorrow;
+          break;
+        case "yesterday":
+          isActive = selected === yesterday;
+          break;
+        case "week-start":
+          isActive = selected === weekStart;
+          break;
+        case "week-end":
+          isActive = selected === weekEnd;
+          break;
+      }
+      btn.classList.toggle("active", isActive);
+    });
+  }
+
+  function setupDateKeyboardShortcuts() {
+    document.addEventListener("keydown", (event) => {
+      const dateFilter = document.getElementById("taskDateFilter");
+      if (!dateFilter) return;
+      if (event.target === dateFilter || event.target.closest(".date-nav-btn") || event.target.closest(".date-quick-btn")) {
+        if (event.key === "ArrowLeft" && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+          event.preventDefault();
+          const current = new Date(state.selectedDate);
+          const prev = addDays(current, -1);
+          updateSelectedDate(formatISODate(prev));
+        } else if (event.key === "ArrowRight" && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+          event.preventDefault();
+          const current = new Date(state.selectedDate);
+          const next = addDays(current, 1);
+          updateSelectedDate(formatISODate(next));
+        }
+      }
+    });
+  }
+
+  function formatDateDisplay(dateString) {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(date);
+    selected.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((selected - today) / (1000 * 60 * 60 * 24));
+    const dayOfWeek = date.toLocaleDateString([], { weekday: "short" });
+    const monthDay = date.toLocaleDateString([], { month: "short", day: "numeric" });
+    let relativeLabel = "";
+    if (diffDays === 0) {
+      relativeLabel = "Today";
+    } else if (diffDays === 1) {
+      relativeLabel = "Tomorrow";
+    } else if (diffDays === -1) {
+      relativeLabel = "Yesterday";
+    } else if (diffDays > 1 && diffDays <= 7) {
+      relativeLabel = `In ${diffDays} days`;
+    } else if (diffDays < -1 && diffDays >= -7) {
+      relativeLabel = `${Math.abs(diffDays)} days ago`;
+    }
+    const display = document.getElementById("dateDisplay");
+    if (display) {
+      display.classList.toggle("font-semibold", diffDays === 0);
+      display.classList.toggle("text-indigo-600", diffDays === 0);
+      if (document.body.dataset.theme === "dark" && diffDays === 0) {
+        display.classList.add("text-indigo-400");
+      }
+    }
+    return relativeLabel ? `${dayOfWeek}, ${monthDay} (${relativeLabel})` : `${dayOfWeek}, ${monthDay}`;
+  }
+
+  function updateDateDisplay() {
+    const display = document.getElementById("dateDisplay");
+    if (display) {
+      display.textContent = formatDateDisplay(state.selectedDate);
+    }
   }
 
   function setFormDefaults() {
@@ -387,10 +629,17 @@
 
   function dateKey(value) {
     if (!value) return "";
-    const stringValue = String(value);
+    const stringValue = String(value).trim();
+    if (!stringValue) return "";
+    // Handle ISO date strings like "2026-01-12T01:53:00.000Z" or "2026-01-12T01:53:00"
     if (/^\d{4}-\d{2}-\d{2}/.test(stringValue)) {
       return stringValue.slice(0, 10);
     }
+    // Handle Date objects
+    if (value instanceof Date) {
+      return formatISODate(value);
+    }
+    // Try parsing as date
     const parsed = new Date(stringValue);
     if (isNaN(parsed.getTime())) return "";
     return formatISODate(parsed);
@@ -430,23 +679,8 @@
   }
 
   function filterTaskTable(tasks) {
-    const selectedKey = dateKey(state.selectedDate);
-    const query = state.taskSearch;
-    return tasks.filter((task) => {
-      const startKey = dateKey(task.start || task.date || task.startDate);
-      if (selectedKey && startKey !== selectedKey) return false;
-      if (!query) return true;
-      const haystack = [
-        task.title,
-        task.description,
-        task.category,
-        task.status,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(query);
-    });
+    // No filtering - show all tasks
+    return tasks;
   }
 
   function paginateTasks(tasks) {
@@ -529,10 +763,16 @@
   }
 
   function filterKanbanTasks(tasks) {
-    if (state.kanbanFilter !== "day") return tasks;
-    const selectedKey = dateKey(state.selectedDate);
+    // When "week" mode is selected, show all tasks (already filtered by week in refreshTasks)
+    if (state.kanbanFilter !== "day") {
+      return tasks;
+    }
+    // When "day" mode is selected, filter by the selected date
+    const selectedKey = dateKey(state.kanbanSelectedDate);
+    if (!selectedKey) return tasks;
     return tasks.filter((task) => {
-      const startKey = dateKey(task.start || task.date || task.startDate);
+      const taskDate = task.start || task.date || task.startDate;
+      const startKey = dateKey(taskDate);
       return startKey && startKey === selectedKey;
     });
   }

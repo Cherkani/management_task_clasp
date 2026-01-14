@@ -1,3 +1,4 @@
+<!-- Using Tailwind CDN for Google Apps Script - CDN is appropriate for this use case -->
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
 :root {
@@ -467,5 +468,140 @@ body[data-theme="dark"] .data-table tbody tr:nth-child(even) {
 
 body[data-theme="dark"] .data-table tbody tr:hover {
   background: rgba(99, 102, 241, 0.2);
+}
+
+.date-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: white;
+  color: #475569;
+  font-size: 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.date-nav-btn:hover {
+  background: #f1f5f9;
+  border-color: #6366f1;
+  color: #4f46e5;
+  transform: translateY(-1px);
+}
+
+.date-nav-btn:active {
+  transform: translateY(0);
+}
+
+body[data-theme="dark"] .date-nav-btn {
+  background: #0b1220;
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #cbd5f5;
+}
+
+body[data-theme="dark"] .date-nav-btn:hover {
+  background: #1e293b;
+  border-color: #6366f1;
+  color: #818cf8;
+}
+
+.date-quick-btn {
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: white;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.date-quick-btn:hover {
+  background: #f1f5f9;
+  border-color: #6366f1;
+  color: #4f46e5;
+  transform: translateY(-1px);
+}
+
+.date-quick-btn:active {
+  transform: translateY(0);
+}
+
+.date-quick-btn.active {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: #6366f1;
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+body[data-theme="dark"] .date-quick-btn {
+  background: #0b1220;
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #cbd5f5;
+}
+
+body[data-theme="dark"] .date-quick-btn:hover {
+  background: #1e293b;
+  border-color: #6366f1;
+  color: #818cf8;
+}
+
+body[data-theme="dark"] .date-quick-btn.active {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: #6366f1;
+  color: #c7d2fe;
+}
+
+#dateDisplay {
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+body[data-theme="dark"] #dateDisplay {
+  color: #818cf8;
+}
+
+#taskDateFilter {
+  position: relative;
+}
+
+#taskDateFilter:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.date-filter-container {
+  position: relative;
+}
+
+.date-filter-container::after {
+  content: "";
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1rem;
+  height: 1rem;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+@media (max-width: 640px) {
+  .date-quick-btn {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.6rem;
+  }
+  
+  .date-nav-btn {
+    width: 2rem;
+    height: 2.25rem;
+  }
 }
 </style>

@@ -77,23 +77,17 @@
         </div>
         <div class="flex flex-col gap-4 sm:flex-row">
           <label class="flex flex-col text-sm font-medium text-slate-600">
-            Week range
-            <select id="weekSelector"
-              class="mt-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-inner focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200">
-            </select>
-          </label>
-          <label class="flex flex-col text-sm font-medium text-slate-600">
-            Focus day
-            <input type="date" id="taskDateFilter"
-              class="mt-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-inner focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
-          </label>
-          <label class="flex flex-col text-sm font-medium text-slate-600">
             Kanban view
             <select id="kanbanFilter"
               class="mt-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-inner focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200">
               <option value="week">All week</option>
               <option value="day">Selected day</option>
             </select>
+          </label>
+          <label id="kanbanDateLabel" class="flex flex-col text-sm font-medium text-slate-600" style="display: none;">
+            Select date
+            <input type="date" id="kanbanDateFilter"
+              class="mt-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-inner focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
           </label>
         </div>
       </header>
@@ -221,12 +215,7 @@
                 <h3 class="text-lg font-semibold">Scheduled tasks</h3>
                 <p class="text-xs uppercase tracking-[0.5em] text-slate-400">Tasks sheet</p>
               </div>
-              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <label class="flex flex-col text-sm font-medium text-slate-600">
-                  Search
-                  <input type="search" id="taskSearch" placeholder="Search tasks"
-                    class="mt-1 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-inner focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
-                </label>
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                 <div id="taskPagination" class="flex items-center gap-2 text-sm text-slate-500"></div>
               </div>
             </div>
